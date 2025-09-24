@@ -1,0 +1,101 @@
+/* Uses the same tokens as home.css; includes fallbacks so it works standalone */
+:root{
+    --bg: #0b101a;
+    --panel: #121a2a;
+    --text: #f5f7ff;
+    --muted: #c6ccea;
+    --border: #26314f;
+    --brand: #ff7181;
+    --brand-deep: #d64050;
+    --ring: #ffb3bd;
+  }
+  
+  /* CONTAINER */
+  .hb-nav{
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: saturate(140%) blur(6px);
+    background: color-mix(in srgb, var(--bg) 84%, transparent);
+    border-bottom: 1px solid var(--border);
+  }
+  .hb-nav__inner{
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 14px 20px;
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  /* BRAND */
+  .hb-brand{display:flex; align-items:center; gap:10px; text-decoration:none}
+  .hb-brand__logo{font-size: 20px}
+  .hb-brand__text{color: var(--text); font-weight: 800; letter-spacing: .2px}
+  
+  /* LINKS (desktop) */
+  .hb-nav__spacer{ display: none }
+  .hb-links{
+    list-style: none; padding: 0; margin: 0; display: flex; gap: 16px;
+  }
+  .hb-links--desktop{ display: none }
+  .hb-link{
+    color: var(--muted);
+    text-decoration: none;
+    padding: 8px 2px;
+    border-radius: 8px;
+  }
+  .hb-link:hover, .hb-link:focus{ color: var(--text) }
+  .hb-link.is-active{
+    color: var(--text);
+    border-bottom: 2px solid color-mix(in srgb, var(--brand) 70%, white);
+  }
+  
+  /* CTA */
+  .hb-cta{
+    text-decoration: none;
+    font-weight: 700;
+    border-radius: 12px;
+    padding: 9px 14px;
+    border: 1px solid color-mix(in srgb, var(--brand-deep) 40%, black);
+    color: white;
+    background: linear-gradient(180deg, var(--brand), var(--brand-deep) 90%);
+  }
+  .hb-cta--ghost{
+    background: transparent;
+    color: var(--text);
+    border-color: var(--border);
+  }
+  .hb-cta--block{ display: block; text-align: center; margin-top: 12px }
+  
+  /* MENU BUTTON (mobile) */
+  .hb-menu-btn{
+    appearance: none; border: 1px solid var(--border); background: transparent;
+    border-radius: 10px; padding: 8px; cursor: pointer; color: var(--text);
+  }
+  .hb-menu-btn:focus{ outline: none; box-shadow: 0 0 0 3px var(--ring) }
+  .hb-menu-btn__bar{
+    display: block; width: 20px; height: 2px; background: var(--text); margin: 3px 0;
+  }
+  
+  /* MOBILE MENU PANEL */
+  .hb-mobile{
+    position: fixed; inset: 56px 0 auto 0; /* below bar */
+    background: color-mix(in srgb, var(--panel) 92%, black 0%);
+    border-bottom: 1px solid var(--border);
+    transform: translateY(-16px);
+    opacity: 0; pointer-events: none;
+    transition: transform .18s ease, opacity .18s ease;
+    padding: 12px 16px 16px;
+  }
+  .hb-mobile.is-open{ transform: translateY(0); opacity: 1; pointer-events: auto }
+  .hb-links--mobile{ flex-direction: column; gap: 6px }
+  
+  /* BREAKPOINTS */
+  @media (min-width: 820px){
+    .hb-nav__inner{ grid-template-columns: auto 1fr auto auto }
+    .hb-links--desktop{ display: flex }
+    .hb-cta--desktop{ display: inline-flex; align-items:center; justify-content:center }
+    .hb-menu-btn, .hb-mobile{ display: none }
+    .hb-nav__spacer{ display: block }
+  }
+  

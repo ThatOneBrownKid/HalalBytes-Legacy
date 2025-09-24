@@ -12,6 +12,9 @@
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/timepicker/1.3.5/jquery.timepicker.min.css">
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
     <link href="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone.css" rel="stylesheet" type="text/css" />
+    <%= stylesheet_link_tag "halabytes_react", "data-turbo-track": "reload" %>
+    <%= javascript_include_tag "halabytes_react", "data-turbo-track": "reload", defer: true %>
+
 
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <!-- Google tag (gtag.js) -->
@@ -23,6 +26,7 @@
 
       gtag('config', 'G-CJM0VENVMF');
     </script>
+    <%= javascript_include_tag "application", "data-turbo-track": "reload", type: "module" %>
   </head>
   <body>
     <% flash.each do |key, value| %>
@@ -40,7 +44,15 @@
         </div>
       <% end %>
     <% end %>
-    <%= render 'home/navbar'%>
+    <div
+  data-react-root="NavBar"
+  data-props='{
+    "brand":{"text":"Halabytes","href":"/"},
+    "links":[{"label":"Restaurants","href":"/restaurants"},{"label":"Request","href":"/request"}],
+    "auth":{"label":"Sign in","href":"/signin"},
+    "logo":"🍽️"
+  }'
+></div>
     <%= yield %>
   </body>
 </html>

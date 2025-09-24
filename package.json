@@ -1,6 +1,15 @@
 {
   "dependencies": {
     "leaflet-providers": "^2.0.0",
-    "quill": "^2.0.3"
+    "quill": "^2.0.3",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "scripts": {
+    "build": "npx esbuild app/javascript/react_entry.jsx --bundle --sourcemap --outfile=app/assets/builds/halabytes_react.js --public-path=/assets --loader:.jsx=jsx --loader:.css=css",
+    "build:watch": "npx esbuild app/javascript/react_entry.jsx --bundle --sourcemap --outfile=app/assets/builds/halabytes_react.js --public-path=/assets --loader:.jsx=jsx --loader:.css=css --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.10"
   }
 }
