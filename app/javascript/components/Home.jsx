@@ -4,7 +4,7 @@ import NavBar from "./Navbar";
 export default function HomePage() {
   return (
 <div><NavBar
-        brand={{ text: "Halabytes", href: "/" }}
+        brand={{ text: "Halalbytes", href: "/" }}
         links={[
           { label: "Restaurants", href: "/restaurants" },
           { label: "Request", href: "/request" },

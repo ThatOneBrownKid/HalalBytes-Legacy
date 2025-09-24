@@ -2,7 +2,7 @@
 import React from "react";
 
 export default function NavBar({
-  brand = { text: "Halabytes", href: "/" },
+  brand = { text: "Halalbytes", href: "/" },
   links = [
     { label: "Restaurants", href: "/restaurants" },
     { label: "Request", href: "/request" },
