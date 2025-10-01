@@ -10,24 +10,33 @@ default: &default # adapter: sqlite3 #old
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
   timeout: 5000
   username: postgres
-  password: new_password
+  password: 1121
+
 development:
   <<: *default
   #database: db/development.sqlite3 #old
   database: flatiron_mod3-development
-# Warning: The database defined as "test" will be erased and
-# re-generated from your development database when you run "rake".
-# Do not set this db to the same as development or production.
+  # Warning: The database defined as "test" will be erased and
+  # re-generated from your development database when you run "rake".
+  # Do not set this db to the same as development or production.
+  
 test:
   <<: *default
   #database: db/test.sqlite3 #old
   database: flatiron_mod3_test
+
+staging:
+  <<: *default
+  database: <%= ENV['RDS_DB_NAME'] %>
+  username: <%= ENV['RDS_USERNAME'] %>
+  password: <%= ENV['RDS_PASSWORD'] %>
+  host: <%= ENV['RDS_HOSTNAME'] %>
+  port: 5432
+
 production:
   <<: *default
-  #database: flatiron_mod3_production
-
-  database: HalalBytes
-  username: <%= ENV['DATABASE_USERNAME'] %> # Assuming you're using environment variables for security
-  password: <%= ENV['DATABASE_PASSWORD'] %> # Ditto
-  host: <%= ENV['DATABASE_HOST'] || 'localhost' %> # Defaults to localhost if not specified
-  port: <%= ENV['DATABASE_PORT'] || 5432 %> # Default PostgreSQL port is 5432
+  database: <%= ENV['RDS_DB_NAME'] %>
+  username: <%= ENV['RDS_USERNAME'] %>
+  password: <%= ENV['RDS_PASSWORD'] %>
+  host: <%= ENV['RDS_HOSTNAME'] %>
+  port: 5432

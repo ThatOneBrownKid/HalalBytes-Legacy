@@ -39,3 +39,10 @@
 /config/credentials/production.key
 config/credentials.yml.enc
 config/database.yml
+
+/config/credentials/development.key
+
+/config/credentials/staging.key
+
+/app/assets/builds/*
+!/app/assets/builds/.keep
