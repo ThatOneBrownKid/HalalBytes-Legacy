@@ -24,6 +24,14 @@ environment ENV.fetch("RAILS_ENV") { "development" }
 # Specifies the `pidfile` that Puma will use.
 pidfile ENV.fetch("PIDFILE") { "tmp/pids/server.pid" }
 
+# In production and staging, bind to the Unix socket that Nginx expects.
+rails_env = ENV.fetch("RAILS_ENV") { "development" }
+
+if rails_env == "production" || rails_env == "staging"
+  # This Unix socket path must match the Nginx configuration on Elastic Beanstalk.
+  bind "unix:///var/run/puma/my_app.sock"
+end
+
 # Specifies the number of `workers` to boot in clustered mode.
 # Workers are forked web server processes. If using threads and workers together
 # the concurrency of the application would be max `threads` * `workers`.

@@ -30,15 +30,14 @@ gem "jbuilder"
 
 gem 'devise', '~> 4.9', '>= 4.9.2'
 
-gem "font-awesome-sass", "~> 6.4.0"
-
 gem 'mail'
 
-gem 'wdm', '>= 0.2.0' if Gem.win_platform?
+gem 'wdm', '>= 0.1.0', platforms: [:mingw, :mswin, :x64_mingw, :jruby]
 
 gem 'jquery-rails'
 gem 'jquery-ui-rails'
 gem 'acts_as_list'
+gem 'bootstrap'
 
 gem 'geocoder'
 
@@ -59,13 +58,14 @@ gem "tzinfo-data"
 
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false
-gem 'bootstrap', '~> 5.3.2'
 
 # Use Sass to process CSS
-gem "sassc-rails"
+gem "dartsass-rails"
 
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 gem "image_processing", "~> 1.2"
+
+gem "aws-sdk-s3", require: false
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem

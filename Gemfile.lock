@@ -70,8 +70,6 @@ GEM
       activerecord (>= 4.2)
     addressable (2.8.1)
       public_suffix (>= 2.0.2, < 6.0)
-    autoprefixer-rails (10.4.16.0)
-      execjs (~> 2)
     aws-eventstream (1.4.0)
     aws-partitions (1.1166.0)
     aws-sdk-core (3.233.0)
@@ -97,8 +95,7 @@ GEM
     bindex (0.8.1)
     bootsnap (1.15.0)
       msgpack (~> 1.2)
-    bootstrap (5.3.2)
-      autoprefixer-rails (>= 9.1.0)
+    bootstrap (5.3.5)
       popper_js (>= 2.11.8, < 3)
     builder (3.2.4)
     capybara (3.38.0)
@@ -113,6 +110,9 @@ GEM
     concurrent-ruby (1.2.2)
     crass (1.0.6)
     csv (3.3.0)
+    dartsass-rails (0.5.1)
+      railties (>= 6.0.0)
+      sass-embedded (~> 1.63)
     date (3.3.3)
     debug (1.4.0)
       irb (>= 1.3.6)
@@ -124,15 +124,21 @@ GEM
       responders
       warden (~> 1.2.3)
     erubi (1.12.0)
-    execjs (2.9.1)
     ffi (1.15.5)
-    font-awesome-sass (6.4.0)
-      sassc (~> 2.0)
     geocoder (1.8.3)
       base64 (>= 0.1.0)
       csv (>= 3.0.0)
     globalid (1.0.0)
       activesupport (>= 5.0)
+    google-protobuf (4.32.1)
+      bigdecimal
+      rake (>= 13)
+    google-protobuf (4.32.1-x64-mingw-ucrt)
+      bigdecimal
+      rake (>= 13)
+    google-protobuf (4.32.1-x86_64-linux-gnu)
+      bigdecimal
+      rake (>= 13)
     i18n (1.12.0)
       concurrent-ruby (~> 1.0)
     image_processing (1.12.2)
@@ -168,6 +174,7 @@ GEM
     method_source (1.0.0)
     mini_magick (4.12.0)
     mini_mime (1.1.2)
+    mini_portile2 (2.8.9)
     minitest (5.17.0)
     msgpack (1.6.0)
     net-imap (0.3.4)
@@ -180,6 +187,9 @@ GEM
     net-smtp (0.3.3)
       net-protocol
     nio4r (2.5.8)
+    nokogiri (1.14.1)
+      mini_portile2 (~> 2.8.0)
+      racc (~> 1.4)
     nokogiri (1.14.1-x64-mingw-ucrt)
       racc (~> 1.4)
     nokogiri (1.14.1-x86-mingw32)
@@ -236,14 +246,13 @@ GEM
     ruby-vips (2.1.4)
       ffi (~> 1.12)
     rubyzip (2.3.2)
-    sassc (2.4.0)
-      ffi (~> 1.9)
-    sassc-rails (2.1.2)
-      railties (>= 4.0.0)
-      sassc (>= 2.0)
-      sprockets (> 3.0)
-      sprockets-rails
-      tilt
+    sass-embedded (1.93.2)
+      google-protobuf (~> 4.31)
+      rake (>= 13)
+    sass-embedded (1.93.2-x64-mingw-ucrt)
+      google-protobuf (~> 4.31)
+    sass-embedded (1.93.2-x86_64-linux-gnu)
+      google-protobuf (~> 4.31)
     selenium-webdriver (4.7.1)
       rexml (~> 3.2, >= 3.2.5)
       rubyzip (>= 1.2.2, < 3.0)
@@ -258,7 +267,6 @@ GEM
     stimulus-rails (1.2.1)
       railties (>= 6.0.0)
     thor (1.2.1)
-    tilt (2.3.0)
     timeout (0.3.1)
     turbo-rails (1.3.2)
       actionpack (>= 6.0.0)
@@ -270,7 +278,7 @@ GEM
       tzinfo (>= 1.0.0)
     warden (1.2.9)
       rack (>= 2.0.9)
-    wdm (0.2.0)
+    wdm (0.1.1)
     web-console (4.2.0)
       actionview (>= 6.0.0)
       activemodel (>= 6.0.0)
@@ -289,6 +297,7 @@ GEM
     zeitwerk (2.6.6)
 
 PLATFORMS
+  ruby
   x64-mingw-ucrt
   x86-mingw32
   x86_64-linux
@@ -297,11 +306,11 @@ DEPENDENCIES
   acts_as_list
   aws-sdk-s3
   bootsnap
-  bootstrap (~> 5.3.2)
+  bootstrap
   capybara
+  dartsass-rails
   debug
   devise (~> 4.9, >= 4.9.2)
-  font-awesome-sass (~> 6.4.0)
   geocoder
   image_processing (~> 1.2)
   importmap-rails
@@ -313,7 +322,6 @@ DEPENDENCIES
   puma (~> 5.0)
   rails (~> 7.0.4, >= 7.0.4.3)
   redis (~> 4.0)
-  sassc-rails
   selenium-webdriver
   sprockets-rails
   stimulus-rails
