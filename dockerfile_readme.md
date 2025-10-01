@@ -34,13 +34,21 @@ When running the container, pass the correct environment variables so the applic
 Replace bracketed values (`[...]`) with your actual RDS credentials and secrets:
 
 ```sh
-docker run -p 3000:3000 \
-    -e RAILS_ENV=development \
-    -e DATABASE_URL="postgres://[MASTER_USERNAME]:[MASTER_PASSWORD]@[RDS_ENDPOINT]:5432/[DB_NAME]" \
-    -e SECRET_KEY_BASE=[YOUR_SECRET_KEY] \
-    # Add any other secrets from Secrets Manager here:
-    -e [SECRET_1_NAME]=[SECRET_1_VALUE] \
-    halalbytes-app
+docker run  \
+  -e RAILS_MASTER_KEY=IN SECRETS MANAGER \
+  -e RAILS_ENV="development" \
+  -e AWS_REGION="us-east-2" \
+  -e AWS_S3_BUCKET="halalbytes-photos-staging-development" \
+  -e AWS_ACCESS_KEY_ID= From Amin or Azi \
+  -e AWS_SECRET_ACCESS_KEY= From Amin or Azi \
+  -e DB_NAME="halalbytes-dev-1" \
+  -e DB_USER="Halalbytes" \
+  -e DB_PASSWORD="Halalbytes_dev" \
+  -e DB_HOST="halalbytes-dev-1.ch06qokeqihs.us-east-2.rds.amazonaws.com" \
+  -it \
+  -p 3000:3000 \
+  halalbytes \
+  bundle exec rails server -b 0.0.0.0 -p 3000
 ```
 
 ---
