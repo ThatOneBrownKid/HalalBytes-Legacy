@@ -35,16 +35,17 @@ Replace bracketed values (`[...]`) with your actual RDS credentials and secrets:
 
 ```sh
 docker run  \
-  -e RAILS_MASTER_KEY=IN SECRETS MANAGER \
+  -e RAILS_MASTER_KEY="IN SECRETS MANAGER" \
   -e RAILS_ENV="development" \
   -e AWS_REGION="us-east-2" \
   -e AWS_S3_BUCKET="halalbytes-photos-staging-development" \
-  -e AWS_ACCESS_KEY_ID= From Amin or Azi \
-  -e AWS_SECRET_ACCESS_KEY= From Amin or Azi \
+  -e AWS_ACCESS_KEY_ID="From Amin or Azi" \
+  -e AWS_SECRET_ACCESS_KEY="From Amin or Azi" \
   -e DB_NAME="halalbytes-dev-1" \
   -e DB_USER="Halalbytes" \
   -e DB_PASSWORD="Halalbytes_dev" \
   -e DB_HOST="halalbytes-dev-1.ch06qokeqihs.us-east-2.rds.amazonaws.com" \
+  -e GEOAPIFY_API_KEY="From Amin or Azi" \
   -it \
   -p 3000:3000 \
   halalbytes \
