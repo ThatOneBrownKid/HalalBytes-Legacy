@@ -1,7 +1,7 @@
 source "https://rubygems.org"
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
-ruby "~> 3.2"
+ruby "3.2.8"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
 gem "rails", "~> 7.0.4", ">= 7.0.4.3"
@@ -40,6 +40,9 @@ gem 'acts_as_list'
 gem 'bootstrap'
 
 gem 'geocoder'
+
+# AWS s3
+gem "aws-sdk-s3", require: false
 
 # Use Redis adapter to run Action Cable in production
 gem "redis", "~> 4.0"
