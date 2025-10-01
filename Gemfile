@@ -1,7 +1,7 @@
 source "https://rubygems.org"
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
-ruby "3.2.2"
+ruby "3.2.8"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
 gem "rails", "~> 7.0.4", ">= 7.0.4.3"
@@ -34,13 +34,16 @@ gem "font-awesome-sass", "~> 6.4.0"
 
 gem 'mail'
 
-gem 'wdm', '>= 0.1.0' if Gem.win_platform?
+gem 'wdm', '>= 0.2.0' if Gem.win_platform?
 
 gem 'jquery-rails'
 gem 'jquery-ui-rails'
 gem 'acts_as_list'
 
 gem 'geocoder'
+
+# AWS s3
+gem "aws-sdk-s3", require: false
 
 # Use Redis adapter to run Action Cable in production
 gem "redis", "~> 4.0"

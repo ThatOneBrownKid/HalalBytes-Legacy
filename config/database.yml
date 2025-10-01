@@ -1,33 +1,17 @@
-# SQLite. Versions 3.8.0 and up are supported.
-#   gem install sqlite3
-#
-#   Ensure the SQLite 3 gem is defined in your Gemfile
-#   gem "sqlite3"
-
-#Postgres 15  Installed
-default: &default # adapter: sqlite3 #old
+default: &default
   adapter: postgresql
+  encoding: unicode
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-  timeout: 5000
-  username: postgres
-  password: new_password
+  port: 5432
+
+  # Ensure all credentials use ENV variables
+  database: <%= ENV["DB_NAME"] %>
+  username: <%= ENV["DB_USER"] %>
+  password: <%= ENV["DB_PASSWORD"] %>
+  host: <%= ENV["DB_HOST"] %>
+
 development:
   <<: *default
-  #database: db/development.sqlite3 #old
-  database: flatiron_mod3-development
-# Warning: The database defined as "test" will be erased and
-# re-generated from your development database when you run "rake".
-# Do not set this db to the same as development or production.
-test:
-  <<: *default
-  #database: db/test.sqlite3 #old
-  database: flatiron_mod3_test
+
 production:
   <<: *default
-  #database: flatiron_mod3_production
-
-  database: HalalBytes
-  username: <%= ENV['DATABASE_USERNAME'] %> # Assuming you're using environment variables for security
-  password: <%= ENV['DATABASE_PASSWORD'] %> # Ditto
-  host: <%= ENV['DATABASE_HOST'] || 'localhost' %> # Defaults to localhost if not specified
-  port: <%= ENV['DATABASE_PORT'] || 5432 %> # Default PostgreSQL port is 5432
