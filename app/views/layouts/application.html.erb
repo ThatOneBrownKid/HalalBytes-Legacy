@@ -47,12 +47,19 @@
     <div
   data-react-root="NavBar"
   data-props='{
-    "brand":{"text":"Halalbytes","href":"/"},
-    "links":[{"label":"Restaurants","href":"/restaurants"},{"label":"Request","href":"/request"}],
-    "auth":{"label":"Sign in","href":"/signin"},
-    "logo":"🍽️"
+    "brand": { "text": "Halalbytes", "href": "<%= root_path %>" },
+    "links": [
+      { "label": "Restaurants", "href": "<%= restaurants_index_path %>" },
+      { "label": "Request", "href": "<%= request_new_restaurants_path %>" }
+    ],
+    "auth": {
+      "label": <%= user_signed_in? ? "\"Account\"" : "\"Sign in\"" %>,
+      "href": "<%= user_signed_in? ? edit_user_registration_path : new_user_session_path %>"
+    },
+    "logoSrc": "<%= asset_path("halalbytes-logo-w.png") %>"
   }'
 ></div>
+
     <%= yield %>
   </body>
 </html>

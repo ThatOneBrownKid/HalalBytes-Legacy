@@ -1,12 +1,13 @@
 // REAL ENTRY
 import React from "react";
 import { createRoot } from "react-dom/client";
+import "./styles/home.css";
 
 // import your components – match filenames exactly
 import HomePage from "./components/Home";      // file: app/javascript/components/Home.jsx
 import NavBar from "./components/Navbar";      // file: app/javascript/components/Navbar.jsx
 
-const registry = { HomePage, NavBar };
+const registry = { NavBar, HomePage};
 
 function mount() {
   document.querySelectorAll("[data-react-root]").forEach((el) => {
