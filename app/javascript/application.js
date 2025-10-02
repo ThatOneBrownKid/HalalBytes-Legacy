@@ -12,5 +12,6 @@ import "leaflet";
 import "controllers/restaurant_index";
 import "controllers/MultiSelect";
 import Rails from "@rails/ujs";
+import "./react_entry"
 Rails.start();
 

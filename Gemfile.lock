@@ -97,6 +97,8 @@ GEM
     concurrent-ruby (1.2.2)
     connection_pool (2.5.4)
     crass (1.0.6)
+    cssbundling-rails (1.4.3)
+      railties (>= 6.0.0)
     csv (3.3.0)
     date (3.3.3)
     debug (1.4.0)
@@ -285,6 +287,7 @@ DEPENDENCIES
   bootsnap
   bootstrap (~> 5.3.2)
   capybara
+  cssbundling-rails (~> 1.4)
   debug
   devise (~> 4.9, >= 4.9.2)
   font-awesome-sass (~> 6.4.0)
