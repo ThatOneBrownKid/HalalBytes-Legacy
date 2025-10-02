@@ -44,6 +44,11 @@ gem 'geocoder'
 # AWS s3
 gem "aws-sdk-s3", require: false
 
+# Content Moderation
+gem 'aws-sdk-rekognition'
+
+gem 'aws-sdk-comprehend'
+
 # Use Redis adapter to run Action Cable in production
 gem "redis", "~> 4.0"
 
