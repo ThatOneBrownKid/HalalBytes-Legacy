@@ -1,157 +1,243 @@
 :root {
-    --hb-bg-1: #b9313a;   /* brand red */
-    --hb-bg-2: #8f1f26;   /* deeper red */
-    --hb-maxw: 1100px;
+  --hb-bg-1: #eb0800;   /* brand red */
+  --hb-bg-2: #f8303d;   /* deeper red */
+  --hb-maxw: 1100px;
+  /* New variable for the light background section */
+  --hb-card-bg: #fffbf9;
+}
+
+.hb-hero {
+  position: relative;
+  color: #fff;
+  /* Changed min-height to match the screen's full height */
+  min-height: 100vh;
+  display: grid;
+  /* Content and Footer placement remains the same */
+  grid-template-rows: 1fr auto;
+  overflow: hidden;
+}
+
+/* Background image & gradient */
+.hb-hero__bg {
+  position: absolute; inset: 0;
+  background-image: var(--hero-bg);
+  background-size: cover;
+  background-position: center;
+  /* Slightly less contrast/saturation to match the mood */
+  filter: contrast(.9) saturate(2);
+  /* opacity: .5; */
+}
+.hb-hero__shade {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, var(--hb-bg-1) 0%, var(--hb-bg-2) 100%);
+  opacity: .6;
+}
+
+/* Content container */
+.hb-hero__content {
+  position: relative;
+  z-index: 1;
+  margin: 0 auto;
+  width: min(100%, calc(var(--hb-maxw) + 64px));
+  /* Centering content vertically on the screen */
+  padding: clamp(32px, 6vw, 80px) 32px 24px;
+  display: flex; /* Added flex to center elements */
+  flex-direction: column;
+  align-items: center; /* Center horizontally */
+  text-align: center; /* Center text within content */
+}
+
+/* Title */
+.hb-hero__title {
+  font-weight: 800;
+  line-height: 1.1;
+  /* Slightly larger font for impact */
+  font-size: clamp(36px, 6vw, 68px);
+  letter-spacing: .2px;
+  margin: 0 0 40px; /* Increased margin to separate from search bar */
+  text-shadow: 0 1px 0 rgba(0,0,0,.1);
+}
+
+/* --- Search Bar (Updated for the new 'hb-search-bar' class) --- */
+.hb-search-bar {
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,.98); /* Near-white background */
+  border-radius: 6px; /* Less rounded corners */
+  padding: 0; /* No internal padding to achieve a joined look */
+  /* Removed gap */
+  gap: 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,.2);
+  width: min(100%, 780px); /* Slightly wider */
+  height: 60px; /* Fixed height for a robust look */
+}
+.hb-search-bar__field {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px; /* Padding for input content */
+  border-radius: 0; /* No internal radius */
+  height: 100%;
+}
+.hb-search-bar__field--location {
+  /* Visual separation for the location field */
+  border-left: 1px solid rgba(0,0,0,.1);
+  flex: 0 0 240px; /* Fixed width for the location field */
+}
+.hb-search-bar__field i { 
+  color: #8a8a8a; 
+  font-size: 20px; /* Larger icon */
+}
+.hb-search-bar__field input {
+  border: 0; outline: none; background: transparent; width: 100%;
+  font-size: 16px; 
+  color: #222;
+  /* Added placeholder color for the first field to match the design */
+  color: #4a4a4a;
+  font-weight: 500;
+}
+/* No divider or search button styling needed for the new design */
+/* Removed .hb-search__divider and .hb-search__btn styles */
+
+/* Chips */
+.hb-chips {
+  margin-top: 20px; /* Increased margin */
+  display: flex; flex-wrap: wrap; gap: 10px;
+  /* Ensuring chips are centered with the search bar */
+  justify-content: center;
+}
+.hb-chip {
+  border: 1px solid rgba(255,255,255,.4); /* Added a slight border */
+  background: rgba(255,255,255,.1); /* Less opaque background */
+  color: #fff;
+  padding: 8px 16px; /* Slightly more padding */
+  border-radius: 999px;
+  font-weight: 500; /* Less heavy font-weight */
+  backdrop-filter: blur(2px);
+  cursor: pointer;
+  /* Box shadow to make them pop a little */
+  box-shadow: 0 1px 2px rgba(0,0,0,.1);
+}
+.hb-chip:hover { background: rgba(255,255,255,.2); }
+
+
+/* --- Trust row & logos (Updated for the new 'hb-trust-section') --- */
+.hb-trust-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 40px; /* Increased margin to separate from chips */
+}
+
+.hb-trust {
+  display: flex; 
+  align-items: center; 
+  gap: 10px;
+  margin-top: 0; /* Reset margin */
+  font-weight: 600; /* Lighter font weight */
+  font-size: 16px; /* Smaller font size for the trust text */
+  /* Slightly less opaque color for the text */
+  color: rgba(255, 255, 255, 0.9);
+}
+.hb-trust__icon {
+  width: 22px; 
+  height: 22px; 
+  font-size: 14px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: #fff; /* White background for the checkmark */
+  color: var(--hb-bg-1); /* Red checkmark */
+}
+
+.hb-logos {
+  display: flex; 
+  gap: 28px; 
+  align-items: center;
+  margin-top: 10px; /* Closer to the trust text */
+  font-weight: 800;
+}
+.hb-logo { 
+  opacity: 1; 
+  font-size: 18px; /* Slightly smaller logo text */
+}
+/* Specific logo styling to match the image's font/color contrast */
+.hb-logo--trustpilot {
+  font-weight: 700;
+}
+.hb-logo--google {
+  color: #fff;
+  font-weight: 800;
+  /* Added a minimal text shadow to simulate the Google logo's depth */
+  text-shadow: 1px 1px 1px rgba(0,0,0,0.1);
+}
+
+/* --- Skeleton cards (Updated for the new design) --- */
+.hb-cards {
+  /* Pushing the card section to the bottom of the main content area */
+  margin-top: auto; 
+  margin-bottom: -50px; /* Pulling the cards down to overlap the footer area */
+  /* Adjusted grid to match the two main input areas and the design's layout */
+  display: grid; 
+  grid-template-columns: repeat(2, minmax(300px, 1fr));
+  gap: 20px; 
+  width: min(100%, 780px); /* Max width same as search bar for alignment */
+  max-width: none;
+  padding: 0 32px; /* Ensure horizontal padding is applied */
+}
+.hb-card {
+  height: 180px; /* Increased height */
+  /* New light background color */
+  background: var(--hb-card-bg);
+  border-radius: 14px 14px 0 0; /* Only top corners are rounded */
+  box-shadow: 0 -4px 15px rgba(0,0,0,.15); /* Shadow for lift effect */
+  /* Removed the inset border */
+  box-shadow: none; 
+  border: 1px solid rgba(0,0,0,0.05);
+  /* For the two visible containers, we only need to keep 2 card styles. 
+     The third one is essentially the middle divider or part of the background. 
+     We rely on the grid to create the two-column structure. */
+}
+
+/* Footer links */
+.hb-footer {
+  position: relative; 
+  z-index: 2; /* Ensure it's above the cards/background */
+  display: flex; 
+  justify-content: center; 
+  gap: 22px;
+  /* Removed top padding to pull it up closer to the cards */
+  padding: 18px 16px 28px; 
+  /* Changed color to a slightly darker, less transparent white */
+  color: rgba(255,255,255,.9);
+  background: var(--hb-card-bg); /* Use the card background color */
+  width: 100%;
+  /* Subtle line/shadow at the top if needed, but not in the image */
+  /* border-top: 1px solid rgba(0,0,0,0.08); */
+}
+.hb-footer a {
+  color: #4a4a4a; /* Darker color for the footer links to match the light background */
+  text-decoration: none; 
+  font-weight: 500; /* Lighter font weight */
+  font-size: 14px; /* Smaller font size */
+}
+.hb-footer a:hover { text-decoration: underline; }
+
+/* Responsive tweaks */
+@media (max-width: 900px) {
+  /* Changed to single column on mobile */
+  .hb-cards { 
+      grid-template-columns: 1fr; 
+      margin-bottom: -150px; /* Adjust overlap for mobile */
   }
-  
-  .hb-hero {
-    position: relative;
-    color: #fff;
-    min-height: 82vh;
-    display: grid;
-    grid-template-rows: 1fr auto;
-    overflow: hidden;
+  .hb-search-bar { width: 100%; }
+  /* Stack search fields vertically on very small screens */
+  .hb-search-bar { flex-direction: column; height: auto; }
+  .hb-search-bar__field { width: 100%; }
+  .hb-search-bar__field--location { 
+      border-left: none; 
+      border-top: 1px solid rgba(0,0,0,.1);
+      flex: 1;
+      padding-left: 20px;
   }
-  
-  /* Background image & gradient */
-  .hb-hero__bg {
-    position: absolute; inset: 0;
-    background-image: var(--hero-bg);
-    background-size: cover;
-    background-position: center;
-    filter: contrast(1) saturate(1.1);
-    opacity: .25;
-  }
-  .hb-hero__shade {
-    position: absolute; inset: 0;
-    background: linear-gradient(180deg, var(--hb-bg-1) 0%, var(--hb-bg-2) 100%);
-    opacity: .95;
-  }
-  
-  /* Content container */
-  .hb-hero__content {
-    position: relative;
-    z-index: 1;
-    margin: 0 auto;
-    width: min(100%, calc(var(--hb-maxw) + 64px));
-    padding: clamp(32px, 6vw, 80px) 32px 24px;
-  }
-  
-  /* Title */
-  .hb-hero__title {
-    font-weight: 800;
-    line-height: 1.1;
-    font-size: clamp(28px, 5vw, 56px);
-    letter-spacing: .2px;
-    margin: 0 0 22px;
-    text-shadow: 0 1px 0 rgba(0,0,0,.1);
-  }
-  
-  /* Search */
-  .hb-search {
-    display: flex;
-    align-items: center;
-    background: rgba(255,255,255,.95);
-    border-radius: 14px;
-    padding: 10px;
-    gap: 10px;
-    box-shadow:
-      0 10px 30px rgba(0,0,0,.18),
-      inset 0 0 0 1px rgba(0,0,0,.04);
-    width: min(100%, 760px);
-  }
-  .hb-search__field {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 10px;
-  }
-  .hb-search__field i { color: #8a8a8a; font-size: 18px; }
-  .hb-search__field input {
-    border: 0; outline: none; background: transparent; width: 100%;
-    font-size: 16px; color: #222;
-  }
-  .hb-search__divider {
-    width: 1px; height: 28px; background: rgba(0,0,0,.12);
-  }
-  .hb-search__btn {
-    border: 0;
-    background: #dc3445;
-    color: #fff;
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-weight: 700;
-    cursor: pointer;
-  }
-  .hb-search__btn:hover { filter: brightness(1.05); }
-  
-  /* Chips */
-  .hb-chips {
-    margin-top: 14px;
-    display: flex; flex-wrap: wrap; gap: 10px;
-  }
-  .hb-chip {
-    border: 0;
-    background: rgba(255,255,255,.18);
-    color: #fff;
-    padding: 8px 14px;
-    border-radius: 999px;
-    font-weight: 600;
-    backdrop-filter: blur(2px);
-    cursor: pointer;
-  }
-  .hb-chip:hover { background: rgba(255,255,255,.26); }
-  
-  /* Trust row & logos */
-  .hb-trust {
-    display: inline-flex; align-items: center; gap: 10px;
-    margin-top: 22px;
-    font-weight: 700;
-    font-size: clamp(16px, 2.6vw, 22px);
-  }
-  .hb-trust__icon {
-    width: 26px; height: 26px; display: grid; place-items: center;
-    border-radius: 50%;
-    background: rgba(255,255,255,.2);
-  }
-  
-  .hb-logos {
-    display: flex; gap: 28px; align-items: center;
-    margin-top: 14px; font-weight: 800;
-  }
-  .hb-logo { opacity: .95; }
-  
-  /* Skeleton cards */
-  .hb-cards {
-    margin-top: 22px;
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 18px; max-width: 980px;
-  }
-  .hb-card {
-    height: 110px;
-    background: rgba(255,255,255,.18);
-    border-radius: 14px;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
-  }
-  
-  /* Footer links */
-  .hb-footer {
-    position: relative; z-index: 1;
-    display: flex; justify-content: center; gap: 22px;
-    padding: 28px 16px 38px;
-    color: rgba(255,255,255,.9);
-  }
-  .hb-footer a {
-    color: rgba(255,255,255,.92);
-    text-decoration: none; font-weight: 600;
-  }
-  .hb-footer a:hover { text-decoration: underline; }
-  
-  /* Responsive tweaks */
-  @media (max-width: 900px) {
-    .hb-cards { grid-template-columns: 1fr; }
-    .hb-search { width: 100%; }
-  }
-  
+}

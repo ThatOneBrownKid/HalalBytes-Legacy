@@ -1,10 +1,11 @@
 /* ---- Theme tokens (tweak to match your red) ---- */
 :root{
   --hb-nav-fg: #fff;
-  --hb-nav-fg-dim: rgba(255,255,255,.85);
-  --hb-nav-fg-muted: rgba(255,255,255,.72);
+  /* UPDATED: Decreased default link opacity for better blend (0.85 -> 0.70) */
+  --hb-nav-fg-dim: rgb(255, 255, 255); 
+  --hb-nav-fg-muted: rgba(255,255,255,.60);
   --hb-accent: #ffffff;
-  --hb-border: rgba(255,255,255,.18);
+  --hb-border: rgba(255,255,255,.25); /* Slightly stronger border */
   --hb-shadow: 0 6px 24px rgba(0,0,0,.16);
   --hb-maxw: 1100px;
 }
@@ -14,11 +15,13 @@
   position: sticky;
   top: 0;
   z-index: 30;
-  /* translucent top like the concept over the hero */
-  background: linear-gradient(180deg, rgba(0,0,0,.06), rgba(0,0,0,0));
+  /* UPDATED: Changed background to a consistent, light black opacity 
+     instead of a gradient for a better blur effect across the entire bar. */
+  background: #d2110b; 
   color: var(--hb-nav-fg);
-  border-bottom: 1px solid var(--hb-border);
-  backdrop-filter: saturate(140%) blur(3px);
+  /* border-bottom: 1px solid var(--hb-border); */
+  /* UPDATED: Increased blur radius for a stronger 'frosted glass' look (3px -> 5px) */
+  backdrop-filter: saturate(140%) blur(5px);
 }
 
 .hb-nav__inner{
@@ -44,6 +47,8 @@
   height: auto;
   display: block;
   border-radius: 999px; /* optional: soft round to mimic app-icon feel */
+  /* Added a subtle white border to make the logo pop against the translucent bar */
+  /* border: 1px solid rgba(255, 255, 255, 0.4);  */
 }
 .hb-brand__text{
   font-weight: 800;
@@ -58,6 +63,7 @@
   gap: 28px;
 }
 .hb-link{
+  /* Uses the updated lower opacity variable */
   color: var(--hb-nav-fg-dim);
   text-decoration: none;
   font-weight: 600;
@@ -66,6 +72,8 @@
 .hb-link:hover,
 .hb-link:focus{
   color: var(--hb-nav-fg);
+  /* Added a subtle underline on hover */
+  text-decoration: underline; 
 }
 
 /* ---- CTA (Sign in) ---- */
