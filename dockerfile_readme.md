@@ -41,10 +41,10 @@ docker run  \
   -e AWS_S3_BUCKET="halalbytes-photos-staging-development" \
   -e AWS_ACCESS_KEY_ID="From Amin or Azi" \
   -e AWS_SECRET_ACCESS_KEY="From Amin or Azi" \
-  -e DB_NAME="halalbytes-dev-1" \
-  -e DB_USER="Halalbytes" \
-  -e DB_PASSWORD="Halalbytes_dev" \
-  -e DB_HOST="halalbytes-dev-1.ch06qokeqihs.us-east-2.rds.amazonaws.com" \
+  -e RDS_DB_NAME="halalbytes-dev-1" \
+  -e RDS_USERNAME="Halalbytes" \
+  -e RDS_PASSWORD=ASK AZI or AMin \
+  -e RDS_HOSTNAME="halalbytes-dev.ch06qokeqihs.us-east-2.rds.amazonaws.com" \
   -e GEOAPIFY_API_KEY="From Amin or Azi" \
   -it \
   -p 3000:3000 \
