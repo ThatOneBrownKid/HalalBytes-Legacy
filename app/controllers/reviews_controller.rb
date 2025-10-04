@@ -36,46 +36,91 @@ class ReviewsController < ApplicationController
   # POST /restaurants/:restaurant_id/reviews
   def create
     @review = @restaurant.reviews.new(review_params)
-    @review.user = current_user # Automatically associate logged-in user
-    
-    analysis_service = AwsAnalysisService.new
-    text_analysis = analysis_service.analyze_text(@review.content)
+    @review.user = current_user
 
-    respond_to do |format|
-     if !text_analysis[:safe_content]
-        @review.errors.add(:content, "contains inappropriate content")
-        format.html { render :new, status: :unprocessable_entity }
-        format.json { render json: { error: "Inappropriate content detected", warnings: text_analysis[:content_warnings] }, status: :unprocessable_entity }
-      elsif @review.save
-        format.html { redirect_to restaurant_path(@restaurant) }
-        format.json { render :show, status: :created, location: @review }
-      else
-        format.html { render :new, status: :unprocessable_entity }
-        format.json { render json: @review.errors, status: :unprocessable_entity }
+    analysis_service = aws_image_analysis_service
+
+    # text analysis first (content is available immediately)
+    text_analysis = analysis_service.analyze_text(@review.content)
+    if !text_analysis[:safe_content]
+      @review.errors.add(:content, "contains inappropriate content")
+      return respond_with_errors(text_analysis[:content_warnings])
+    end
+
+    # Save review + attachments so blobs are committed and uploaded
+    if @review.save
+      # Now run image analysis AFTER save
+      if @review.images.attached?
+        is_safe = analysis_service.analyze_image(@review.images)
+        if !is_safe
+          @review.images.purge
+          @review.update_column(:content, "rejected_for_unsafe_images")
+          @review.destroy
+          return respond_with_errors(["Image contains inappropriate content"])
+        end          
       end
+      respond_success
+    else
+      respond_with_errors(@review.errors.full_messages)
     end
   end
+  private
+
+  def aws_image_analysis_service
+    @aws_image_analysis_service ||= AwsImageAnalysisService.new
+  end
+
+
+  def respond_with_errors(warnings)
+    session[:content_warnings] = warnings
+    session[:content_warnings_views] = 3 # Show for 1 page load
+    respond_to do |format|
+      format.html { redirect_to restaurant_path(@restaurant)}
+      format.json { render json: { error: "Validation failed", warnings: warnings }, status: :unprocessable_entity }
+    end
+  end
+
+  def respond_success
+    respond_to do |format|
+      format.html { redirect_to restaurant_path(@restaurant) }
+      format.json { render :show, status: :created, location: @review }
+    end
+  end
+
   
 
   # PATCH/PUT /restaurants/:restaurant_id/reviews/1
   def update
-    analysis_service = AwsAnalysisService.new
-    text_analysis = analysis_service.analyze_text(review_params[:content])
+    @review = @restaurant.reviews.new(review_params)
+    @review.user = current_user
 
-    respond_to do |format|
-      if !text_analysis[:safe_content]
-        @review.errors.add(:content, "contains inappropriate content")
-        format.html { render :edit, status: :unprocessable_entity }
-        format.json { render json: { error: "Inappropriate content detected", warnings: text_analysis[:content_warnings] }, status: :unprocessable_entity }
-      elsif @review.update(review_params)
-        format.html { redirect_to restaurant_review_path(@restaurant, @review) }
-        format.json { render :show, status: :ok, location: @review }
-      else
-        format.html { render :edit, status: :unprocessable_entity }
-        format.json { render json: @review.errors, status: :unprocessable_entity }
+    analysis_service = aws_image_analysis_service
+
+    # text analysis first (content is available immediately)
+    text_analysis = analysis_service.analyze_text(@review.content)
+    print("text:",text_analysis)
+    if !text_analysis[:safe_content]
+      @review.errors.add(:content, "contains inappropriate content")
+      return respond_with_errors(text_analysis[:content_warnings])
+    end
+
+    # Save review + attachments so blobs are committed and uploaded
+    if @review.update(review_params)
+      # Now run image analysis AFTER save
+      if @review.images.attached?
+        is_safe = analysis_service.analyze_image(@review.images)
+        if !is_safe
+          @review.images.purge
+          @review.update_column(:content, "rejected_for_unsafe_images")
+          return respond_with_errors(["Image contains inappropriate content"])
+        end          
       end
+      respond_success
+    else
+      respond_with_errors(@review.errors.full_messages)
     end
   end
+  private
 
   # DELETE /restaurants/:restaurant_id/reviews/1
   def destroy
@@ -89,40 +134,27 @@ class ReviewsController < ApplicationController
   end
 
   def upload_image
-    i""" Handles the upload of an image, performs content moderation, and stores the image if deemed appropriate.
-    
-    It uses an external service (`AwsImageAnalysisService`) to analyze the image for inappropriate content."""
-
     if params[:image]
+      # Attach the image to a temporary ActiveStorage blob
+      print("Uploading image...")
+      uploaded_image = ActiveStorage::Blob.create_and_upload!(
+        io: params[:image],
+        filename: params[:image].original_filename,
+        content_type: params[:image].content_type
+      )
+      review.images.attach(uploaded_image)
 
-      analysis_service = AwsImageAnanlysisService.new
+      # Generate the URL for the uploaded image
+      image_url = url_for(uploaded_image)
 
-      # First analyze the image
+      # Return the image URL as JSON
+      render json: { url: image_url }, status: :ok
 
-
-      begin
-        analysis_result = analysis_service.analyze_image(params[:image])
-
-        unless analysis_result[:safe_for_work]
-          render json: { error: 'Image content not appropriate' }, status: :unprocessable_entity
-          return
-        end
-
-        # If image is safe, proceed with upload
-        # Then Upload the image to S3 halalbytes-photos bucket
-        uploaded_image = analysis_service.upload_to_s3('halalbytes-photos', "#{params[:image].original_filename}", params[:image].path,metadata: { moderation_labels: analysis_result[:labels].to_json })
-
-        image_url = "s3//:halalbytes-photos/#{params[:image].original_filename}"
-
-        render json: { url: image_url }, status: :ok
-      rescue => e
-        render json: { error: "Upload failed: #{e.message}" }, status: :unprocessable_entity
-      end
     else
       render json: { error: "No image provided" }, status: :unprocessable_entity
     end
-  end
 
+  end
   private
 
   # Find the associated restaurant for the nested routes
