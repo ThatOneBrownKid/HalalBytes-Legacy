@@ -48,7 +48,6 @@ class AwsImageAnalysisService
       bucket = service.bucket.name
       key    = blob.key
 
-      puts "Bucket: #{bucket}, Key: #{key}"
       response = @rekognition_client.detect_moderation_labels(
        image: { s3_object: { bucket: bucket, name: key } },
        min_confidence: 60

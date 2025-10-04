@@ -98,7 +98,6 @@ class ReviewsController < ApplicationController
 
     # text analysis first (content is available immediately)
     text_analysis = analysis_service.analyze_text(@review.content)
-    print("text:",text_analysis)
     if !text_analysis[:safe_content]
       @review.errors.add(:content, "contains inappropriate content")
       return respond_with_errors(text_analysis[:content_warnings])
@@ -136,7 +135,6 @@ class ReviewsController < ApplicationController
   def upload_image
     if params[:image]
       # Attach the image to a temporary ActiveStorage blob
-      print("Uploading image...")
       uploaded_image = ActiveStorage::Blob.create_and_upload!(
         io: params[:image],
         filename: params[:image].original_filename,
