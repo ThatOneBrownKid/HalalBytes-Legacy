@@ -165,13 +165,7 @@
                     <p>"Unallowed Content"</p>
                   </ul>
                 </div>
-                <% 
-                  session[:content_warnings_views] = session[:content_warnings_views].to_i - 1
-                  if session[:content_warnings_views] <= 0
-                    session.delete(:content_warnings)
-                    session.delete(:content_warnings_views)
-                  end
-                %>
+                <% session.delete(:content_warnings) %>
               <% end %>
             </div>
           <% end %>

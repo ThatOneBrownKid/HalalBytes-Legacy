@@ -73,7 +73,6 @@ class ReviewsController < ApplicationController
 
   def respond_with_errors(warnings)
     session[:content_warnings] = warnings
-    session[:content_warnings_views] = 3 # Show for 1 page load
     respond_to do |format|
       format.html { redirect_to restaurant_path(@restaurant)}
       format.json { render json: { error: "Validation failed", warnings: warnings }, status: :unprocessable_entity }
