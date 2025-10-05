@@ -6,6 +6,8 @@ WORKDIR /app
 
 # Install dependencies (Debian-based Ruby image)
 RUN apt-get update -qq && apt-get install -y build-essential libpq-dev nodejs
+# Autocorrect dependecies
+RUN apt-get update && apt-get install -y aspell aspell-en
 
 # Copy Gemfile and install gems first (better layer caching)
 COPY Gemfile* ./
@@ -16,7 +18,6 @@ COPY . .
 
 # Create Temp Server directory
 RUN mkdir -p tmp/pids
-RUN bin/rails db:create
 
 # Expose app port (update if not 3000)
 EXPOSE 3000

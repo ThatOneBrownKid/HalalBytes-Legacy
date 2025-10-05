@@ -4,6 +4,8 @@ Rails.application.routes.draw do
   get '/restaurants', to: 'restaurants#index', as: :restaurants_index
   post 'restaurants/request_create', to: 'restaurants#request_create', as: :request_create_restaurants
   get 'requested_restaurants', to: 'restaurants#requested'
+  get 'all_reported', to: 'reviews#all_reported', as: :all_reported
+  
   get 'all_requested', to: 'restaurants#all_requested'
   get 'restaurants/filter', to: 'restaurants#filter'
   get '/get_location', to: 'restaurants#get_location'
@@ -36,12 +38,22 @@ Rails.application.routes.draw do
   patch 'restaurants/:id/update_images_order', to: 'restaurants#update_images_order', as: 'update_images_order'
   post '/requests/upload_images', to: 'requests#upload_images', as: :request_upload_images
   post 'reviews/upload_image', to: 'reviews#upload_image'
-  
+
   resources :restaurants do
-    resources :reviews
+    resources :reviews do
+      member do
+        post :report  # This will create report_restaurant_review_path
+        post 'accept' => 'reviews#dismiss_report' # This will create accept_restaurant_review_path
+      end
+    end
   end
-
-
+  
+  resources :reviews, only: [] do
+    member do
+      post :report
+      post :accept, to: 'reviews#dismiss_report'
+    end
+  end
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Defines the root path route ("/")

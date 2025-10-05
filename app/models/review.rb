@@ -10,7 +10,6 @@ class Review < ApplicationRecord
 
   validates :content, presence: true
   validates :rating, presence: true, inclusion: { in: 1..5 }
-
   private
 
   def update_restaurant_rating
