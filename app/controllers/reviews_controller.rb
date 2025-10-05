@@ -1,5 +1,5 @@
 class ReviewsController < ApplicationController
-  before_action :set_restaurant
+  before_action :set_restaurant, except: [:all_reported]
   before_action :set_review, only: %i[show edit update destroy]
 
   # GET /restaurants/:restaurant_id/reviews
@@ -64,7 +64,7 @@ class ReviewsController < ApplicationController
       respond_with_errors(@review.errors.full_messages)
     end
   end
-  private
+  
 
   def aws_image_analysis_service
     @aws_image_analysis_service ||= AwsImageAnalysisService.new
@@ -118,15 +118,17 @@ class ReviewsController < ApplicationController
       respond_with_errors(@review.errors.full_messages)
     end
   end
-  private
 
   # DELETE /restaurants/:restaurant_id/reviews/1
   def destroy
     @review.destroy
 
     respond_to do |format|
-      # Changed redirect to go to the parent restaurant's show page
-      format.html { redirect_to restaurant_path(@restaurant)}
+      if params[:from] == "reported"
+      format.html { redirect_to all_reported_path, notice: "Review deleted successfully." }
+      else
+        format.html { redirect_to restaurant_path(@restaurant), notice: "Review deleted successfully." }
+      end
       format.json { head :no_content }
     end
   end
@@ -152,7 +154,29 @@ class ReviewsController < ApplicationController
     end
 
   end
-  private
+
+  def report
+    @review = Review.find(params[:id])
+    @review.update(reported: (@review.reported || 0) + 1)
+    respond_to do |format|
+      format.html { redirect_to restaurant_path(@restaurant), notice: "Review reported successfully."}
+      format.json { render :show, status: :reported}
+    end
+  end
+
+  def all_reported
+    @reviews = Review.where("reported > 0").order(reported: :desc).includes(:restaurant, :user) || []
+  end
+
+  def dismiss_report
+    @review = Review.find(params[:id])
+    @review.update(reported: 0)
+    respond_to do |format|
+      format.html { redirect_to all_reported_path, notice: "Report dismissed." }
+      format.turbo_stream # For AJAX / Turbo updates
+    end
+  end
+  
 
   # Find the associated restaurant for the nested routes
   def set_restaurant
@@ -168,4 +192,5 @@ class ReviewsController < ApplicationController
   def review_params
     params.require(:review).permit(:content, :rating, :parent_id, images: [])
   end
+
 end

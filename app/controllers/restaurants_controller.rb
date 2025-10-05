@@ -77,7 +77,7 @@ class RestaurantsController < ApplicationController
              end
     respond_to do |format|
       format.html # normal page load
-      format.turbo_stream { render partial: "restaurants/reviews_frame", locals: { restaurant: @restaurant, reviews: @reviews } }
+      format.turbo_stream
     end
   end
 

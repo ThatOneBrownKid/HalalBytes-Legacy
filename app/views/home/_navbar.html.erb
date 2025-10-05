@@ -35,6 +35,11 @@
                   <%= link_to "All Requests", all_requested_path, class: "dropdown-item" %>
                 </li>
               <% end %>
+              <% if current_user.admin? %>
+                <li class="nav-item">
+                  <%= link_to "All Reported", all_reported_path, class: "dropdown-item" %>
+                </li>
+              <% end %>
               <li class="nav-item">
                 <%= link_to 'My Requests', requested_restaurants_path, class: 'dropdown-item' %>
               </li>
