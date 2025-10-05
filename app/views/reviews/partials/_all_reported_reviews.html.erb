@@ -8,26 +8,19 @@
       <i class="bi bi-three-dots-vertical"></i> <%# Bootstrap Icon for vertical three dots %>
     </button>
     <%# The dropdown menu %>
-    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="reviewOptions_<%= review.id %>">
-      <% if review.user == current_user %> <%# Check if the review belongs to the current user %>
-        <li>
-          <%# The delete link %>
-          <%= button_to "Delete", restaurant_review_path(review.restaurant, review),
-                      method: :delete, # Use HTTP DELETE method
-                      data: { turbo: "false", turbo_confirm: "Are you sure you want to delete this review?" }, # Confirmation prompt
-                      class: "dropdown-item" # Bootstrap class for danger styling
-                      %>
-        </li>
-      <% end %>
-      <li>
-        <%# The report link %>
-        <%= button_to "Report", report_restaurant_review_path(review.restaurant, review),
-                      method: :post, # Use HTTP DELETE method
-                      data: { turbo: "false", turbo_confirm: "Are you sure you want to report this review?" },
-                      class: "dropdown-item" # Bootstrap class for danger styling
-                      %>
-      </li>
-    </ul>
+    <div class="col-md-8">
+      <div class="card-body">
+        <div class="d-flex justify-content-end">
+          <span class="me-2 text-secondary">Reports: <%= review.reported || 0 %></span>
+          <%= button_to accept_restaurant_review_path(review.restaurant, review), method: :post, data: { turbo: "false" },class: 'btn-icon', style: "color: Green", remote: true do %>
+            <i class="bi bi-check-circle-fill h1 m-1"></i>
+          <% end %>
+          <%= button_to restaurant_review_path(review.restaurant, review, from: "reported"), method: :delete, data: { turbo: "false" }, class: 'btn-icon', style: "color: Red" do %>
+            <i class="bi bi-x-circle-fill h1 m-1"></i>
+          <% end %>
+        </div>
+      </div>
+    </div>
   </div>
   <%# --- End Review Options Button --- %>
   <%# --- Review Author and Timestamp --- %>

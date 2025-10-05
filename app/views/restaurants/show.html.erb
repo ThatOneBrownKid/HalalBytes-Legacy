@@ -158,6 +158,15 @@
           <% else %>
             <div class="col-md-4">
               <%= render 'reviews/form', restaurant: @restaurant, review: Review.new(restaurant: @restaurant) %>
+              <% if session[:content_warnings].present? %>
+                <div class="alert alert-warning mt-3">
+                  <h5>Content warnings:</h5>
+                  <ul>
+                    <p>"Unallowed Content"</p>
+                  </ul>
+                </div>
+                <% session.delete(:content_warnings) %>
+              <% end %>
             </div>
           <% end %>
         <% else %>
