@@ -16,7 +16,6 @@ COPY . .
 
 # Create Temp Server directory
 RUN mkdir -p tmp/pids
-RUN bin/rails db:create
 
 # Expose app port (update if not 3000)
 EXPOSE 3000
