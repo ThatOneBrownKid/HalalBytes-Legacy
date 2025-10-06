@@ -4,6 +4,9 @@ set -e
 # Default to production if RAILS_ENV not set
 RAILS_ENV=${RAILS_ENV:-production}
 
+# Create db if not there
+bin/rails db:create
+bin/rails db:migrate
 # Precompile assets
 bin/rails assets:precompile
 
