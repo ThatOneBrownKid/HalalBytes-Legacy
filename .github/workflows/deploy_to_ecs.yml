@@ -1,0 +1,55 @@
+name: Deploy to ECS
+
+on:
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2️⃣ Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # 3️⃣ Login to ECR
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
+          docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY }}
+
+      # 4️⃣ Build Docker image
+      - name: Build Docker image
+        run: |
+          IMAGE_TAG=${GITHUB_SHA::7}  # first 7 chars of commit SHA
+          docker build -t halalbytes:$IMAGE_TAG .
+
+      # 5️⃣ Tag Docker image for ECR
+      - name: Tag Docker image
+        run: |
+          IMAGE_TAG=${GITHUB_SHA::7}
+          docker tag halalbytes:$IMAGE_TAG ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
+
+      # 6️⃣ Push Docker image to ECR
+      - name: Push Docker image
+        run: |
+          IMAGE_TAG=${GITHUB_SHA::7}
+          docker push ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
+
+      # 7️⃣ Update ECS service with new image
+      - name: Update ECS service
+        run: |
+          IMAGE_TAG=${GITHUB_SHA::7}
+          aws ecs update-service \
+            --cluster ${{ secrets.ECS_CLUSTER }} \
+            --service ${{ secrets.ECS_SERVICE }} \
+            --force-new-deployment \
+            --image ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
