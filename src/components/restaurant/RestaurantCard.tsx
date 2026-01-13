@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Star, MapPin, Clock, Heart } from "lucide-react";
+import { Star, MapPin, Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 interface Restaurant {
   id: string;
   name: string;
-  description: string;
+  description?: string | null;
   address: string;
   price_range: '$' | '$$' | '$$$' | '$$$$';
   cuisine_type: string;
@@ -36,20 +36,27 @@ export const RestaurantCard = ({
 }: RestaurantCardProps) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-    // Start image slideshow on hover
-    const interval = setInterval(() => {
-      setCurrentImageIndex((prev) => (prev + 1) % (restaurant.images?.length || 1));
-    }, 1500);
-    return () => clearInterval(interval);
-  };
+  useEffect(() => {
+    if (isHovered && restaurant.images && restaurant.images.length > 1) {
+      intervalRef.current = setInterval(() => {
+        setCurrentImageIndex((prev) => (prev + 1) % restaurant.images.length);
+      }, 1500);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setCurrentImageIndex(0);
+    }
 
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-    setCurrentImageIndex(0);
-  };
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isHovered, restaurant.images]);
 
   return (
     <motion.div
@@ -58,8 +65,8 @@ export const RestaurantCard = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       whileHover={{ y: -4 }}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       className={cn(
         "group relative rounded-xl overflow-hidden bg-card border transition-all duration-300 cursor-pointer",
         isHighlighted && "ring-2 ring-primary shadow-glow",
@@ -124,7 +131,7 @@ export const RestaurantCard = ({
           </>
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-muted">
-            <span className="text-muted-foreground">No image</span>
+            <MapPin className="h-8 w-8 text-muted-foreground" />
           </div>
         )}
       </div>

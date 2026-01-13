@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const SignUp = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signUp } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -28,15 +30,24 @@ const SignUp = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // TODO: Implement actual authentication with Supabase
-    setTimeout(() => {
+    const { error } = await signUp(formData.email, formData.password, formData.username);
+    
+    if (error) {
       toast({
-        title: "Account created!",
-        description: "Welcome to HalalBytes. Start exploring halal food near you.",
+        title: "Sign up failed",
+        description: error.message,
+        variant: "destructive",
       });
       setIsLoading(false);
-      navigate('/explore');
-    }, 1000);
+      return;
+    }
+
+    toast({
+      title: "Account created!",
+      description: "Welcome to HalalBytes. Start exploring halal food near you.",
+    });
+    setIsLoading(false);
+    navigate('/explore');
   };
 
   return (

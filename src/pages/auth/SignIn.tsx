@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const SignIn = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signIn } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -21,15 +23,24 @@ const SignIn = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // TODO: Implement actual authentication with Supabase
-    setTimeout(() => {
+    const { error } = await signIn(formData.email, formData.password);
+    
+    if (error) {
       toast({
-        title: "Welcome back!",
-        description: "You have successfully signed in.",
+        title: "Sign in failed",
+        description: error.message,
+        variant: "destructive",
       });
       setIsLoading(false);
-      navigate('/explore');
-    }, 1000);
+      return;
+    }
+
+    toast({
+      title: "Welcome back!",
+      description: "You have successfully signed in.",
+    });
+    setIsLoading(false);
+    navigate('/explore');
   };
 
   return (

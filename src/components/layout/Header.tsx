@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, User, Heart, FileText, Settings, LogOut, Shield, Sun, Moon } from "lucide-react";
+import { Menu, X, User, Heart, FileText, Settings, LogOut, Shield, Sun, Moon, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,22 +9,26 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
-interface HeaderProps {
-  user?: {
-    id: string;
-    username: string;
-    avatar_url?: string;
-    role: 'user' | 'admin';
-  } | null;
-  onSignOut?: () => void;
-}
-
-export const Header = ({ user, onSignOut }: HeaderProps) => {
+export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { user, profile, role, signOut, loading } = useAuth();
+  const { theme, setTheme, resolvedTheme } = useTheme();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
 
   return (
     <header className="sticky top-0 z-50 glass border-b">
@@ -64,14 +68,40 @@ export const Header = ({ user, onSignOut }: HeaderProps) => {
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-3">
-            {user ? (
+            {/* Theme Toggle */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="hidden sm:flex">
+                  {resolvedTheme === 'dark' ? (
+                    <Moon className="h-4 w-4" />
+                  ) : (
+                    <Sun className="h-4 w-4" />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as 'light' | 'dark' | 'system')}>
+                  <DropdownMenuRadioItem value="light" className="gap-2">
+                    <Sun className="h-4 w-4" /> Light
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="dark" className="gap-2">
+                    <Moon className="h-4 w-4" /> Dark
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="system" className="gap-2">
+                    <Monitor className="h-4 w-4" /> System
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {!loading && user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-10 w-10 ring-2 ring-primary/10 transition-all hover:ring-primary/30">
-                      <AvatarImage src={user.avatar_url} alt={user.username} />
+                      <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.username || ''} />
                       <AvatarFallback className="bg-primary text-primary-foreground font-medium">
-                        {user.username?.charAt(0).toUpperCase() || 'U'}
+                        {profile?.username?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -79,14 +109,14 @@ export const Header = ({ user, onSignOut }: HeaderProps) => {
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <div className="flex items-center gap-2 p-2">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.avatar_url} alt={user.username} />
+                      <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.username || ''} />
                       <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                        {user.username?.charAt(0).toUpperCase() || 'U'}
+                        {profile?.username?.charAt(0).toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col space-y-0.5">
-                      <p className="text-sm font-medium">{user.username}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
+                      <p className="text-sm font-medium">{profile?.username || user.email}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{role || 'user'}</p>
                     </div>
                   </div>
                   <DropdownMenuSeparator />
@@ -106,7 +136,7 @@ export const Header = ({ user, onSignOut }: HeaderProps) => {
                     <Settings className="mr-2 h-4 w-4" />
                     Settings
                   </DropdownMenuItem>
-                  {user.role === 'admin' && (
+                  {role === 'admin' && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => navigate('/admin')}>
@@ -116,13 +146,13 @@ export const Header = ({ user, onSignOut }: HeaderProps) => {
                     </>
                   )}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onSignOut} className="text-destructive focus:text-destructive">
+                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
+            ) : !loading ? (
               <div className="hidden sm:flex items-center gap-2">
                 <Button 
                   variant="ghost" 
@@ -138,7 +168,7 @@ export const Header = ({ user, onSignOut }: HeaderProps) => {
                   Get Started
                 </Button>
               </div>
-            )}
+            ) : null}
 
             {/* Mobile Menu Button */}
             <Button
@@ -177,6 +207,31 @@ export const Header = ({ user, onSignOut }: HeaderProps) => {
               >
                 About
               </Link>
+              {/* Mobile theme toggle */}
+              <div className="flex items-center gap-2 py-2">
+                <span className="text-sm text-muted-foreground">Theme:</span>
+                <Button
+                  variant={theme === 'light' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTheme('light')}
+                >
+                  <Sun className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={theme === 'dark' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTheme('dark')}
+                >
+                  <Moon className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={theme === 'system' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTheme('system')}
+                >
+                  <Monitor className="h-4 w-4" />
+                </Button>
+              </div>
               {!user && (
                 <div className="flex gap-2 pt-2">
                   <Button 
