@@ -12,6 +12,10 @@ import RestaurantDetails from "./pages/RestaurantDetails";
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
+import MyRequests from "./pages/MyRequests";
+import Favorites from "./pages/Favorites";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +34,39 @@ const App = () => (
               <Route path="/restaurant/:id" element={<RestaurantDetails />} />
               <Route path="/auth/signin" element={<SignIn />} />
               <Route path="/auth/signup" element={<SignUp />} />
+              {/* User Routes */}
+              <Route 
+                path="/profile" 
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/settings" 
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/my-requests" 
+                element={
+                  <ProtectedRoute>
+                    <MyRequests />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/favorites" 
+                element={
+                  <ProtectedRoute>
+                    <Favorites />
+                  </ProtectedRoute>
+                } 
+              />
               {/* Protected Admin Route - client-side check for UX, RLS enforces actual security */}
               <Route 
                 path="/admin" 
