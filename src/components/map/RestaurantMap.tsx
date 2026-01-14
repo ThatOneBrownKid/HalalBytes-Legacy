@@ -92,8 +92,14 @@ const MapEventHandler = ({
   return null;
 };
 
-// Component to handle location
-const LocationButton = ({ onLocationFound }: { onLocationFound: (lat: number, lng: number) => void }) => {
+// Component to handle location - always visible with blue icon
+const LocationButton = ({ 
+  onLocationFound, 
+  hasLocation 
+}: { 
+  onLocationFound: (lat: number, lng: number) => void;
+  hasLocation: boolean;
+}) => {
   const map = useMap();
   const { latitude, longitude, loading, error, requestLocation } = useGeolocation();
 
@@ -109,7 +115,12 @@ const LocationButton = ({ onLocationFound }: { onLocationFound: (lat: number, ln
       <Button
         size="icon"
         variant="secondary"
-        className="shadow-lg bg-card hover:bg-accent"
+        className={cn(
+          "shadow-lg border-2 transition-all",
+          hasLocation 
+            ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-400" 
+            : "bg-card hover:bg-accent border-transparent"
+        )}
         onClick={requestLocation}
         disabled={loading}
         title={error || "Use my location"}
@@ -117,7 +128,7 @@ const LocationButton = ({ onLocationFound }: { onLocationFound: (lat: number, ln
         {loading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          <Navigation className="h-4 w-4" />
+          <Navigation className={cn("h-4 w-4", hasLocation && "fill-current")} />
         )}
       </Button>
     </div>
@@ -151,7 +162,7 @@ export const RestaurantMap = ({
   }, []);
 
   return (
-    <div className="relative w-full h-full rounded-xl overflow-hidden">
+    <div className="relative w-full h-full rounded-xl overflow-hidden" style={{ zIndex: 0 }}>
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={zoom}
@@ -169,7 +180,7 @@ export const RestaurantMap = ({
           restaurants={restaurants}
         />
 
-        <LocationButton onLocationFound={handleLocationFound} />
+        <LocationButton onLocationFound={handleLocationFound} hasLocation={!!userLocation} />
 
         {/* User location marker */}
         {userLocation && (

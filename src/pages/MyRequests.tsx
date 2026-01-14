@@ -1,0 +1,192 @@
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { Header } from "@/components/layout/Header";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { FileText, Clock, CheckCircle, XCircle, Plus } from "lucide-react";
+import { format } from "date-fns";
+
+interface RestaurantRequest {
+  id: string;
+  status: "pending" | "approved" | "rejected";
+  submission_data: {
+    name?: string;
+    address?: string;
+    cuisine_type?: string;
+  };
+  admin_notes: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+}
+
+const MyRequests = () => {
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+
+  const { data: requests, isLoading } = useQuery({
+    queryKey: ["my-requests", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      
+      const { data, error } = await supabase
+        .from("restaurant_requests")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data as RestaurantRequest[];
+    },
+    enabled: !!user,
+  });
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-8">
+          <Skeleton className="h-10 w-48 mb-8" />
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full" />
+            ))}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!user) {
+    navigate("/auth/signin");
+    return null;
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <Clock className="h-4 w-4" />;
+      case "approved":
+        return <CheckCircle className="h-4 w-4" />;
+      case "rejected":
+        return <XCircle className="h-4 w-4" />;
+      default:
+        return <FileText className="h-4 w-4" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "bg-yellow-500/10 text-yellow-600 border-yellow-500/30";
+      case "approved":
+        return "bg-green-500/10 text-green-600 border-green-500/30";
+      case "rejected":
+        return "bg-red-500/10 text-red-600 border-red-500/30";
+      default:
+        return "";
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+
+      <main className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="font-display text-3xl font-bold text-foreground">
+              My Requests
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Track your restaurant submission requests
+            </p>
+          </div>
+          <Button onClick={() => navigate("/submit-restaurant")} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Request
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full" />
+            ))}
+          </div>
+        ) : requests && requests.length > 0 ? (
+          <div className="space-y-4">
+            {requests.map((request) => (
+              <Card key={request.id}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg">
+                        {request.submission_data?.name || "Unnamed Restaurant"}
+                      </CardTitle>
+                      <CardDescription>
+                        {request.submission_data?.address || "No address provided"}
+                      </CardDescription>
+                    </div>
+                    <Badge variant="outline" className={getStatusColor(request.status)}>
+                      {getStatusIcon(request.status)}
+                      <span className="ml-1.5 capitalize">{request.status}</span>
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span>
+                      Submitted: {format(new Date(request.created_at), "MMM d, yyyy")}
+                    </span>
+                    {request.submission_data?.cuisine_type && (
+                      <>
+                        <span>•</span>
+                        <span>{request.submission_data.cuisine_type}</span>
+                      </>
+                    )}
+                    {request.reviewed_at && (
+                      <>
+                        <span>•</span>
+                        <span>
+                          Reviewed: {format(new Date(request.reviewed_at), "MMM d, yyyy")}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  {request.admin_notes && (
+                    <div className="mt-3 p-3 bg-muted rounded-lg">
+                      <p className="text-sm font-medium mb-1">Admin Notes:</p>
+                      <p className="text-sm text-muted-foreground">{request.admin_notes}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="font-medium text-lg mb-2">No requests yet</h3>
+              <p className="text-muted-foreground text-center mb-6">
+                You haven't submitted any restaurant requests yet.
+                <br />
+                Know a great halal restaurant? Submit it for review!
+              </p>
+              <Button onClick={() => navigate("/submit-restaurant")} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Submit a Restaurant
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </main>
+    </div>
+  );
+};
+
+export default MyRequests;
