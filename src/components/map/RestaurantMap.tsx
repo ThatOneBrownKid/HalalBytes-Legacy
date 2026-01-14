@@ -215,3 +215,5 @@ export const RestaurantMap = ({
     </div>
   );
 };
+
+export default RestaurantMap;

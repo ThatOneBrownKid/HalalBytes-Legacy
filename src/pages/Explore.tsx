@@ -1,19 +1,21 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, lazy, Suspense } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { Map, List, MapPin } from "lucide-react";
+import { motion } from "framer-motion";
+import { Map, List } from "lucide-react";
 import { Virtuoso } from "react-virtuoso";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { SearchBar } from "@/components/search/SearchBar";
 import { FilterBar } from "@/components/filters/FilterBar";
 import { RestaurantCard } from "@/components/restaurant/RestaurantCard";
-import { RestaurantMap } from "@/components/map/RestaurantMap";
 import { LocationSelector } from "@/components/location/LocationSelector";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+
+// Lazy load the map to avoid context issues
+const RestaurantMap = lazy(() => import("@/components/map/RestaurantMap").then(m => ({ default: m.RestaurantMap })));
 
 interface Restaurant {
   id: string;
@@ -292,13 +294,15 @@ const Explore = () => {
             mobileView === 'list' && "hidden lg:block"
           )}
         >
-          <RestaurantMap
-            restaurants={mapRestaurants}
-            selectedId={selectedRestaurantId}
-            onMarkerClick={handleMarkerClick}
-            onBoundsChange={handleBoundsChange}
-            center={mapCenter}
-          />
+          <Suspense fallback={<div className="flex items-center justify-center h-full"><Skeleton className="w-full h-full" /></div>}>
+            <RestaurantMap
+              restaurants={mapRestaurants}
+              selectedId={selectedRestaurantId}
+              onMarkerClick={handleMarkerClick}
+              onBoundsChange={handleBoundsChange}
+              center={mapCenter}
+            />
+          </Suspense>
         </div>
       </div>
     </div>
