@@ -284,14 +284,14 @@ const RestaurantDetails = () => {
                     >
                       <div className="flex items-start gap-3 mb-3">
                         <Avatar>
-                          <AvatarImage src={review.profiles?.avatar_url || undefined} />
+                          <AvatarImage src={review.profile?.avatar_url || undefined} />
                           <AvatarFallback className="bg-primary text-primary-foreground">
-                            {review.profiles?.username?.charAt(0) || 'U'}
+                            {review.profile?.username?.charAt(0) || 'U'}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                           <div className="flex items-center justify-between">
-                            <p className="font-medium">{review.profiles?.username || 'Anonymous'}</p>
+                            <p className="font-medium">{review.profile?.username || 'Anonymous'}</p>
                             <span className="text-sm text-muted-foreground">
                               {new Date(review.created_at).toLocaleDateString()}
                             </span>
