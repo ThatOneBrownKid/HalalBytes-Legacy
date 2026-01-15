@@ -16,6 +16,7 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import MyRequests from "./pages/MyRequests";
 import Favorites from "./pages/Favorites";
+import SubmitRestaurant from "./pages/SubmitRestaurant";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <MyRequests />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/submit-restaurant" 
+                element={
+                  <ProtectedRoute>
+                    <SubmitRestaurant />
                   </ProtectedRoute>
                 } 
               />

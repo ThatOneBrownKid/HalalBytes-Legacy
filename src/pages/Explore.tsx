@@ -1,8 +1,8 @@
-import { useState, useCallback, useMemo, lazy, Suspense } from "react";
+import { useState, useCallback, useMemo, lazy, Suspense, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Map, List } from "lucide-react";
-import { Virtuoso } from "react-virtuoso";
+import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { SearchBar } from "@/components/search/SearchBar";
@@ -33,14 +33,33 @@ interface Restaurant {
   review_count: number;
 }
 
+// Fetch user's approximate location from IP
+const fetchIPLocation = async (): Promise<{ lat: number; lng: number; city: string } | null> => {
+  try {
+    const response = await fetch('https://ipapi.co/json/');
+    if (!response.ok) return null;
+    const data = await response.json();
+    return {
+      lat: data.latitude,
+      lng: data.longitude,
+      city: `${data.city}, ${data.region_code || data.region}`
+    };
+  } catch (error) {
+    console.error('Failed to fetch IP location:', error);
+    return null;
+  }
+};
+
 const Explore = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
   
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | undefined>();
+  const [highlightedCardId, setHighlightedCardId] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentLocation, setCurrentLocation] = useState("New York, NY");
+  const [currentLocation, setCurrentLocation] = useState("Loading...");
   const [mapCenter, setMapCenter] = useState({ lat: 40.7128, lng: -74.0060 });
   const [filters, setFilters] = useState({
     priceRange: [] as string[],
@@ -54,6 +73,18 @@ const Explore = () => {
     east: number;
     west: number;
   } | null>(null);
+
+  // Fetch IP-based location on mount
+  useEffect(() => {
+    fetchIPLocation().then(location => {
+      if (location) {
+        setMapCenter({ lat: location.lat, lng: location.lng });
+        setCurrentLocation(location.city);
+      } else {
+        setCurrentLocation("New York, NY");
+      }
+    });
+  }, []);
 
   // Fetch restaurants from database
   const { data: restaurants = [], isLoading } = useQuery({
@@ -155,11 +186,26 @@ const Explore = () => {
 
   const handleMarkerClick = useCallback((id: string) => {
     setSelectedRestaurantId(id);
+    setHighlightedCardId(id);
+    
+    // Find the index of the restaurant in the sorted list
+    const index = sortedRestaurants.findIndex(r => r.id === id);
+    if (index !== -1 && virtuosoRef.current) {
+      virtuosoRef.current.scrollToIndex({
+        index,
+        align: 'center',
+        behavior: 'smooth'
+      });
+    }
+    
     // On mobile, switch to list view when marker is clicked
     if (window.innerWidth < 1024) {
       setMobileView('list');
     }
-  }, []);
+    
+    // Clear highlight after a delay
+    setTimeout(() => setHighlightedCardId(undefined), 3000);
+  }, [sortedRestaurants]);
 
   const handleCardSelect = useCallback((id: string) => {
     navigate(`/restaurant/${id}`);
@@ -270,12 +316,13 @@ const Explore = () => {
               </div>
             ) : (
               <Virtuoso
+                ref={virtuosoRef}
                 data={sortedRestaurants}
                 itemContent={(index, restaurant) => (
                   <div className="p-4">
                     <RestaurantCard
                       restaurant={restaurant}
-                      isHighlighted={selectedRestaurantId === restaurant.id}
+                      isHighlighted={highlightedCardId === restaurant.id || selectedRestaurantId === restaurant.id}
                       onSelect={handleCardSelect}
                       onFavorite={(id) => console.log("Favorite:", id)}
                     />

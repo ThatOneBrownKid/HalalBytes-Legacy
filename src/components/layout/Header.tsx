@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, User, Heart, FileText, Settings, LogOut, Shield, Sun, Moon, Monitor } from "lucide-react";
+import { Menu, X, User, Heart, FileText, Settings, LogOut, Shield, Sun, Moon, Monitor, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -131,6 +131,10 @@ export const Header = () => {
                   <DropdownMenuItem onClick={() => navigate('/my-requests')}>
                     <FileText className="mr-2 h-4 w-4" />
                     My Requests
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/submit-restaurant')}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Submit Restaurant
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/settings')}>
                     <Settings className="mr-2 h-4 w-4" />

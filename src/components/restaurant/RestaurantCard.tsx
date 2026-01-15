@@ -62,14 +62,18 @@ export const RestaurantCard = ({
     <motion.div
       layout
       initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      animate={{ 
+        opacity: 1, 
+        y: 0,
+        scale: isHighlighted ? 1.02 : 1,
+      }}
       exit={{ opacity: 0, y: -20 }}
       whileHover={{ y: -4 }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={cn(
         "group relative rounded-xl overflow-hidden bg-card border transition-all duration-300 cursor-pointer",
-        isHighlighted && "ring-2 ring-primary shadow-glow",
+        isHighlighted && "ring-2 ring-primary shadow-glow animate-pulse",
         restaurant.is_sponsored && "ring-1 ring-gold/50"
       )}
       onClick={() => onSelect?.(restaurant.id)}
