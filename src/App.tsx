@@ -18,6 +18,7 @@ import MyRequests from "./pages/MyRequests";
 import Favorites from "./pages/Favorites";
 import SubmitRestaurant from "./pages/SubmitRestaurant";
 import NotFound from "./pages/NotFound";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -32,7 +33,14 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/explore" element={<Explore />} />
-              <Route path="/restaurant/:id" element={<RestaurantDetails />} />
+              <Route 
+                path="/restaurant/:id" 
+                element={
+                  <ErrorBoundary>
+                    <RestaurantDetails />
+                  </ErrorBoundary>
+                } 
+              />
               <Route path="/auth/signin" element={<SignIn />} />
               <Route path="/auth/signup" element={<SignUp />} />
               {/* User Routes */}

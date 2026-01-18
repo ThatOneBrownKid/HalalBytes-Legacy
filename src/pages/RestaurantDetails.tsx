@@ -108,8 +108,41 @@ const RestaurantDetails = () => {
   const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
   const today = dayNames[new Date().getDay()];
 
-  const openingHours = restaurant?.opening_hours as Record<string, string> | null;
-  const halalAttributes = (restaurant?.halal_attributes as string[] | null) || [];
+  // --- Data Parsing and Formatting ---
+
+  interface DayHours {
+    isOpen: boolean;
+    openTime?: string;
+    closeTime?: string;
+  }
+
+  // Safely parse potentially stringified JSON data
+  const safeParse = <T,>(data: unknown, fallback: T): T => {
+    if (typeof data === 'string') {
+      try {
+        const parsed = JSON.parse(data);
+        return parsed;
+      } catch (e) {
+        console.error("Failed to parse JSON string:", data);
+        return fallback;
+      }
+    }
+    // Ensure that if data is not a string, it's treated as T, returning fallback if it's null/undefined
+    return (data as T) ?? fallback;
+  };
+  
+  const formatHours = (hours: DayHours | undefined): string => {
+    if (!hours || !hours.isOpen) {
+      return 'Closed';
+    }
+    if (hours.openTime && hours.closeTime) {
+      return `${hours.openTime} - ${hours.closeTime}`;
+    }
+    return 'Open'; // Fallback for open but no specific times
+  };
+  
+  const openingHours = safeParse<Record<string, DayHours> | null>(restaurant?.opening_hours, null);
+  const halalAttributes = safeParse<string[]>(restaurant?.halal_attributes, []);
 
   if (restaurantLoading) {
     return (
@@ -370,7 +403,7 @@ const RestaurantDetails = () => {
               </div>
 
               {/* Hours Card */}
-              {openingHours && (
+              {openingHours && Object.keys(openingHours).length > 0 && (
                 <div className="p-6 rounded-2xl bg-card border">
                   <Accordion type="single" collapsible defaultValue="hours">
                     <AccordionItem value="hours" className="border-none">
@@ -380,14 +413,14 @@ const RestaurantDetails = () => {
                           <div className="text-left">
                             <p className="font-medium">Hours</p>
                             <p className="text-sm text-muted-foreground">
-                              Today: {openingHours[today] || 'Closed'}
+                              Today: {formatHours(openingHours[today])}
                             </p>
                           </div>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="pt-4 space-y-2">
-                          {Object.entries(openingHours).map(([day, hours]) => (
+                          {dayNames.map((day) => (
                             <div 
                               key={day} 
                               className={cn(
@@ -396,7 +429,7 @@ const RestaurantDetails = () => {
                               )}
                             >
                               <span className="capitalize">{day}</span>
-                              <span>{hours}</span>
+                              <span>{formatHours(openingHours[day])}</span>
                             </div>
                           ))}
                         </div>

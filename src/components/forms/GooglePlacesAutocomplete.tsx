@@ -1,11 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Search, MapPin, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-// Placeholder for Google Maps API Key - replace with your actual key
 const MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+
+// --- Interfaces for Places API (New) ---
 
 interface PlaceDetails {
   name: string;
@@ -14,17 +14,23 @@ interface PlaceDetails {
   lng: number;
   phone?: string;
   website?: string;
-  priceLevel?: number;
+  priceLevel?: string; // e.g., "PRICE_LEVEL_MODERATE"
   openingHours?: string[];
   placeId: string;
 }
 
 interface PlacePrediction {
-  place_id: string;
-  description: string;
-  structured_formatting: {
-    main_text: string;
-    secondary_text: string;
+  placeId: string;
+  text: {
+    text: string;
+  };
+  structuredFormat: {
+    mainText: {
+      text: string;
+    };
+    secondaryText?: {
+      text: string;
+    };
   };
 }
 
@@ -57,34 +63,31 @@ export const GooglePlacesAutocomplete = ({
   const debounceRef = useRef<NodeJS.Timeout>();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Generate new session token on focus
   const handleFocus = () => {
-    sessionTokenRef.current = generateSessionToken();
+    if (!sessionTokenRef.current) {
+      sessionTokenRef.current = generateSessionToken();
+    }
     setIsFocused(true);
     setError(null);
   };
 
-  // Handle click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsFocused(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Fetch predictions as user types
   const fetchPredictions = useCallback(async (input: string) => {
     if (!input.trim() || input.length < 2) {
       setPredictions([]);
       return;
     }
-
     if (!MAPS_API_KEY) {
-      setError("Google Maps API key not configured. Please add VITE_GOOGLE_MAPS_API_KEY to your environment.");
+      setError("Google Maps API key not configured.");
       setPredictions([]);
       return;
     }
@@ -93,107 +96,104 @@ export const GooglePlacesAutocomplete = ({
     setError(null);
 
     try {
-      // Using Places Autocomplete API
-      const url = new URL("https://maps.googleapis.com/maps/api/place/autocomplete/json");
-      url.searchParams.append("input", input);
-      url.searchParams.append("types", "establishment");
-      url.searchParams.append("key", MAPS_API_KEY);
-      url.searchParams.append("sessiontoken", sessionTokenRef.current);
-      
-      // Note: This will need a proxy/edge function in production due to CORS
-      // For now, we'll simulate the response structure
-      const response = await fetch(`/api/places/autocomplete?${url.searchParams.toString()}`);
+      const response = await fetch(`/api/v1/places:autocomplete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': MAPS_API_KEY,
+        },
+        body: JSON.stringify({
+          input,
+          includedPrimaryTypes: ['restaurant'],
+          sessionToken: sessionTokenRef.current,
+        }),
+      });
+
+      const data = await response.json();
       
       if (!response.ok) {
-        throw new Error("Failed to fetch predictions");
+        console.error("Places API (New) Autocomplete Error:", data);
+        throw new Error(data.error?.message || "Failed to fetch predictions.");
       }
       
-      const data = await response.json();
-      setPredictions(data.predictions || []);
-    } catch (err) {
+      console.log("Places API (New) Autocomplete Response:", data);
+      setPredictions(data.suggestions?.map((s: any) => s.placePrediction) || []);
+
+    } catch (err: any) {
       console.error("Places autocomplete error:", err);
-      // For development, show mock predictions when API isn't configured
-      if (!MAPS_API_KEY) {
-        setError("Configure VITE_GOOGLE_MAPS_API_KEY to enable search");
-      }
+      setError(err.message);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // Debounced search
   const handleInputChange = (value: string) => {
     setQuery(value);
-    
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchPredictions(value);
     }, 300);
   };
 
-  // Fetch place details when selected
   const handleSelectPlace = async (prediction: PlacePrediction) => {
-    setQuery(prediction.structured_formatting.main_text);
+    setQuery(prediction.structuredFormat.mainText.text);
     setPredictions([]);
     setIsFocused(false);
     setIsLoading(true);
 
     try {
       if (!MAPS_API_KEY) {
-        // Return mock data for development
-        onPlaceSelect({
-          name: prediction.structured_formatting.main_text,
-          address: prediction.structured_formatting.secondary_text,
-          lat: 40.7128,
-          lng: -74.0060,
-          placeId: prediction.place_id,
-        });
-        setIsLoading(false);
-        return;
+        throw new Error("Google Maps API key not configured.");
       }
 
-      // Fetch place details using the same session token
-      const url = new URL("https://maps.googleapis.com/maps/api/place/details/json");
-      url.searchParams.append("place_id", prediction.place_id);
-      url.searchParams.append("fields", "name,formatted_address,geometry,formatted_phone_number,website,price_level,opening_hours");
-      url.searchParams.append("key", MAPS_API_KEY);
-      url.searchParams.append("sessiontoken", sessionTokenRef.current);
-
-      const response = await fetch(`/api/places/details?${url.searchParams.toString()}`);
-      
-      if (!response.ok) {
-        throw new Error("Failed to fetch place details");
-      }
-      
-      const data = await response.json();
-      const result = data.result;
-
-      onPlaceSelect({
-        name: result.name,
-        address: result.formatted_address,
-        lat: result.geometry.location.lat,
-        lng: result.geometry.location.lng,
-        phone: result.formatted_phone_number,
-        website: result.website,
-        priceLevel: result.price_level,
-        openingHours: result.opening_hours?.weekday_text,
-        placeId: prediction.place_id,
+      const fields = "id,displayName,formattedAddress,location,internationalPhoneNumber,websiteUri,priceLevel,regularOpeningHours";
+      const params = new URLSearchParams({
+        fields: fields,
+        sessionToken: sessionTokenRef.current,
       });
 
-      // Generate new session token for next search
-      sessionTokenRef.current = generateSessionToken();
-    } catch (err) {
-      console.error("Place details error:", err);
-      // Fallback with basic info
+      const response = await fetch(`/api/v1/places/${prediction.placeId}?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': MAPS_API_KEY,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("Places API (New) Details Error:", data);
+        throw new Error(data.error?.message || "Failed to fetch place details.");
+      }
+      
+      console.log("Places API (New) Details Response:", data);
+
       onPlaceSelect({
-        name: prediction.structured_formatting.main_text,
-        address: prediction.structured_formatting.secondary_text,
+        placeId: data.id,
+        name: data.displayName,
+        address: data.formattedAddress,
+        lat: data.location.latitude,
+        lng: data.location.longitude,
+        phone: data.internationalPhoneNumber,
+        website: data.websiteUri,
+        priceLevel: data.priceLevel,
+        openingHours: data.regularOpeningHours?.weekdayDescriptions,
+      });
+
+      // Reset session token for the next "session"
+      sessionTokenRef.current = "";
+
+    } catch (err: any) {
+      console.error("Place details error:", err);
+      setError(err.message);
+       // Fallback with basic info
+       onPlaceSelect({
+        placeId: prediction.placeId,
+        name: prediction.structuredFormat.mainText.text,
+        address: prediction.structuredFormat.secondaryText?.text || prediction.text.text,
         lat: 0,
         lng: 0,
-        placeId: prediction.place_id,
       });
     } finally {
       setIsLoading(false);
@@ -216,27 +216,28 @@ export const GooglePlacesAutocomplete = ({
         )}
       </div>
       
-      {/* Predictions Dropdown */}
       {isFocused && (predictions.length > 0 || error) && (
         <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-64 overflow-auto">
           {error ? (
-            <div className="p-3 text-sm text-muted-foreground">{error}</div>
+            <div className="p-3 text-sm text-destructive">{error}</div>
           ) : (
-            predictions.map((prediction) => (
+            predictions.map((p) => (
               <button
-                key={prediction.place_id}
+                key={p.placeId}
                 type="button"
-                onClick={() => handleSelectPlace(prediction)}
+                onClick={() => handleSelectPlace(p)}
                 className="w-full px-3 py-2 text-left hover:bg-accent transition-colors flex items-start gap-2"
               >
                 <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                 <div>
                   <div className="font-medium text-sm">
-                    {prediction.structured_formatting.main_text}
+                    {p.structuredFormat.mainText.text}
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {prediction.structured_formatting.secondary_text}
-                  </div>
+                  {p.structuredFormat.secondaryText && (
+                    <div className="text-xs text-muted-foreground">
+                      {p.structuredFormat.secondaryText.text}
+                    </div>
+                  )}
                 </div>
               </button>
             ))
