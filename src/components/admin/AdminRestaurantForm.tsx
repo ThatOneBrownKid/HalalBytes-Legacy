@@ -11,10 +11,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Upload, Link } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Search, PenLine } from "lucide-react";
+import { ImageUploadZone } from "@/components/forms/ImageUploadZone";
+import { GooglePlacesAutocomplete } from "@/components/forms/GooglePlacesAutocomplete";
+import { OpeningHoursEditor, getDefaultOpeningHours, parseGoogleHours, type OpeningHoursData } from "@/components/forms/OpeningHoursEditor";
+import { geocodeAddress } from "@/utils/geocoding";
+
+interface UploadedImage {
+  id: string;
+  url: string;
+  file?: File;
+  isUploading?: boolean;
+}
 
 interface RestaurantFormData {
   name: string;
@@ -27,7 +38,7 @@ interface RestaurantFormData {
   website_url: string;
   lat: number;
   lng: number;
-  image_url: string;
+  opening_hours: OpeningHoursData;
 }
 
 const cuisineTypes = [
@@ -48,6 +59,9 @@ const cuisineTypes = [
 
 export const AdminRestaurantForm = () => {
   const queryClient = useQueryClient();
+  const [entryMode, setEntryMode] = useState<"search" | "manual">("search");
+  const [images, setImages] = useState<UploadedImage[]>([]);
+  const [isGeocoding, setIsGeocoding] = useState(false);
   const [formData, setFormData] = useState<RestaurantFormData>({
     name: "",
     address: "",
@@ -57,15 +71,32 @@ export const AdminRestaurantForm = () => {
     description: "",
     phone: "",
     website_url: "",
-    lat: 40.7128,
-    lng: -74.006,
-    image_url: "",
+    lat: 0,
+    lng: 0,
+    opening_hours: getDefaultOpeningHours(),
   });
-  const [imageTab, setImageTab] = useState<"url" | "upload">("url");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const createRestaurantMutation = useMutation({
     mutationFn: async (data: RestaurantFormData) => {
+      // Geocode address if coordinates are not set
+      let lat = data.lat;
+      let lng = data.lng;
+      
+      if (lat === 0 && lng === 0 && data.address) {
+        setIsGeocoding(true);
+        try {
+          const geocoded = await geocodeAddress(data.address);
+          if (geocoded) {
+            lat = geocoded.lat;
+            lng = geocoded.lng;
+          } else {
+            throw new Error("Could not geocode address. Please verify the address is correct.");
+          }
+        } finally {
+          setIsGeocoding(false);
+        }
+      }
+
       // Create the restaurant
       const { data: restaurant, error } = await supabase
         .from("restaurants")
@@ -78,26 +109,30 @@ export const AdminRestaurantForm = () => {
           description: data.description || null,
           phone: data.phone || null,
           website_url: data.website_url || null,
-          lat: data.lat,
-          lng: data.lng,
+          lat,
+          lng,
+          opening_hours: data.opening_hours as any,
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      // If there's an image URL, add it
-      if (data.image_url) {
+      // Add images
+      const validImages = images.filter(img => !img.isUploading && img.url);
+      if (validImages.length > 0) {
+        const imageInserts = validImages.map((img, index) => ({
+          restaurant_id: restaurant.id,
+          url: img.url,
+          is_primary: index === 0,
+        }));
+
         const { error: imageError } = await supabase
           .from("restaurant_images")
-          .insert({
-            restaurant_id: restaurant.id,
-            url: data.image_url,
-            is_primary: true,
-          });
+          .insert(imageInserts);
 
         if (imageError) {
-          console.error("Failed to add image:", imageError);
+          console.error("Failed to add images:", imageError);
         }
       }
 
@@ -117,11 +152,11 @@ export const AdminRestaurantForm = () => {
         description: "",
         phone: "",
         website_url: "",
-        lat: 40.7128,
-        lng: -74.006,
-        image_url: "",
+        lat: 0,
+        lng: 0,
+        opening_hours: getDefaultOpeningHours(),
       });
-      setSelectedFile(null);
+      setImages([]);
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -134,25 +169,84 @@ export const AdminRestaurantForm = () => {
       toast.error("Please fill in all required fields");
       return;
     }
+    
+    // Check if any images are still uploading
+    if (images.some(img => img.isUploading)) {
+      toast.error("Please wait for all images to finish uploading");
+      return;
+    }
+    
     createRestaurantMutation.mutate(formData);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      // For now, just show a preview - actual upload would need storage bucket
-      const reader = new FileReader();
-      reader.onload = () => {
-        // This would be replaced with actual upload logic
-        toast.info("File selected. Note: File uploads require storage configuration.");
-      };
-      reader.readAsDataURL(file);
-    }
+  const handlePlaceSelect = (place: {
+    name: string;
+    address: string;
+    lat: number;
+    lng: number;
+    phone?: string;
+    website?: string;
+    priceLevel?: number;
+    openingHours?: string[];
+  }) => {
+    const priceMap: Record<number, "$" | "$$" | "$$$" | "$$$$"> = {
+      1: "$",
+      2: "$$",
+      3: "$$$",
+      4: "$$$$",
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      name: place.name,
+      address: place.address,
+      lat: place.lat,
+      lng: place.lng,
+      phone: place.phone || prev.phone,
+      website_url: place.website || prev.website_url,
+      price_range: place.priceLevel ? priceMap[place.priceLevel] || "$$" : prev.price_range,
+      opening_hours: place.openingHours ? parseGoogleHours(place.openingHours) : prev.opening_hours,
+    }));
+
+    toast.success("Restaurant details filled from search");
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Entry Mode Toggle */}
+      <Tabs value={entryMode} onValueChange={(v) => setEntryMode(v as "search" | "manual")}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="search" className="gap-2">
+            <Search className="h-4 w-4" />
+            Search to Auto-fill
+          </TabsTrigger>
+          <TabsTrigger value="manual" className="gap-2">
+            <PenLine className="h-4 w-4" />
+            Manual Entry
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="search" className="mt-4">
+          <div className="space-y-2">
+            <Label>Search for Restaurant</Label>
+            <GooglePlacesAutocomplete
+              onPlaceSelect={handlePlaceSelect}
+              placeholder="Search by restaurant name or address..."
+            />
+            <p className="text-xs text-muted-foreground">
+              Search will auto-fill name, address, phone, website, hours, and price range.
+              You can edit any field after selection.
+            </p>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="manual" className="mt-4">
+          <p className="text-sm text-muted-foreground">
+            Fill in all restaurant details manually below.
+          </p>
+        </TabsContent>
+      </Tabs>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Basic Info */}
         <div className="space-y-4">
@@ -173,9 +267,12 @@ export const AdminRestaurantForm = () => {
               id="address"
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              placeholder="Full street address"
+              placeholder="Full street address (will be geocoded)"
               required
             />
+            <p className="text-xs text-muted-foreground">
+              Address will be automatically converted to coordinates
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -273,86 +370,32 @@ export const AdminRestaurantForm = () => {
         </div>
       </div>
 
-      {/* Coordinates */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="lat">Latitude</Label>
-          <Input
-            id="lat"
-            type="number"
-            step="any"
-            value={formData.lat}
-            onChange={(e) => setFormData({ ...formData, lat: parseFloat(e.target.value) })}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="lng">Longitude</Label>
-          <Input
-            id="lng"
-            type="number"
-            step="any"
-            value={formData.lng}
-            onChange={(e) => setFormData({ ...formData, lng: parseFloat(e.target.value) })}
-          />
-        </div>
-      </div>
+      {/* Opening Hours */}
+      <OpeningHoursEditor
+        value={formData.opening_hours}
+        onChange={(hours) => setFormData({ ...formData, opening_hours: hours })}
+      />
 
       {/* Image Upload */}
       <div className="space-y-2">
-        <Label>Restaurant Image</Label>
-        <Tabs value={imageTab} onValueChange={(v) => setImageTab(v as "url" | "upload")}>
-          <TabsList className="mb-3">
-            <TabsTrigger value="url" className="gap-2">
-              <Link className="h-4 w-4" />
-              Image URL
-            </TabsTrigger>
-            <TabsTrigger value="upload" className="gap-2">
-              <Upload className="h-4 w-4" />
-              Upload File
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="url">
-            <Input
-              value={formData.image_url}
-              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-              placeholder="https://example.com/image.jpg"
-            />
-          </TabsContent>
-          <TabsContent value="upload">
-            <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-                id="image-upload"
-              />
-              <label
-                htmlFor="image-upload"
-                className="cursor-pointer flex flex-col items-center gap-2"
-              >
-                <Upload className="h-8 w-8 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  {selectedFile ? selectedFile.name : "Click to upload an image"}
-                </span>
-              </label>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Note: File uploads require storage bucket configuration.
-            </p>
-          </TabsContent>
-        </Tabs>
+        <Label>Restaurant Images (up to 10)</Label>
+        <ImageUploadZone
+          images={images}
+          onImagesChange={setImages}
+          maxImages={10}
+          folderPrefix="restaurants"
+        />
       </div>
 
       <Button
         type="submit"
         className="w-full"
-        disabled={createRestaurantMutation.isPending}
+        disabled={createRestaurantMutation.isPending || isGeocoding}
       >
-        {createRestaurantMutation.isPending ? (
+        {createRestaurantMutation.isPending || isGeocoding ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            Creating...
+            {isGeocoding ? "Geocoding address..." : "Creating..."}
           </>
         ) : (
           "Create Restaurant"

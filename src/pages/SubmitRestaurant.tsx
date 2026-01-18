@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Upload, Link as LinkIcon, Loader2, MapPin, Phone, Globe, DollarSign, Check } from "lucide-react";
+import { ArrowLeft, Loader2, MapPin, Phone, Globe, Search, PenLine, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { ImageUploadZone } from "@/components/forms/ImageUploadZone";
+import { GooglePlacesAutocomplete } from "@/components/forms/GooglePlacesAutocomplete";
+import { OpeningHoursEditor, getDefaultOpeningHours, parseGoogleHours, type OpeningHoursData } from "@/components/forms/OpeningHoursEditor";
+import { geocodeAddress } from "@/utils/geocoding";
+
+interface UploadedImage {
+  id: string;
+  url: string;
+  file?: File;
+  isUploading?: boolean;
+}
 
 const cuisineTypes = [
   "Middle Eastern", "Mediterranean", "South Asian", "Southeast Asian", 
@@ -41,9 +52,8 @@ const SubmitRestaurant = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [imageUploadMethod, setImageUploadMethod] = useState<"url" | "file">("url");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [entryMode, setEntryMode] = useState<"search" | "manual">("search");
+  const [images, setImages] = useState<UploadedImage[]>([]);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -56,9 +66,9 @@ const SubmitRestaurant = () => {
     halal_status: "Full Halal" as "Full Halal" | "Partial Halal",
     halal_attributes: [] as string[],
     partial_halal_meats: [] as string[],
-    image_url: "",
     lat: 0,
     lng: 0,
+    opening_hours: getDefaultOpeningHours(),
   });
 
   const handleInputChange = (field: string, value: string | number) => {
@@ -83,42 +93,36 @@ const SubmitRestaurant = () => {
     }));
   };
 
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onload = () => setImagePreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
+  const handlePlaceSelect = (place: {
+    name: string;
+    address: string;
+    lat: number;
+    lng: number;
+    phone?: string;
+    website?: string;
+    priceLevel?: number;
+    openingHours?: string[];
+  }) => {
+    const priceMap: Record<number, "$" | "$$" | "$$$" | "$$$$"> = {
+      1: "$",
+      2: "$$",
+      3: "$$$",
+      4: "$$$$",
+    };
 
-  const uploadImage = async (): Promise<string | null> => {
-    if (imageUploadMethod === "url" && formData.image_url) {
-      return formData.image_url;
-    }
-    
-    if (imageUploadMethod === "file" && imageFile && user) {
-      const fileExt = imageFile.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-      
-      const { data, error } = await supabase.storage
-        .from('restaurant-images')
-        .upload(fileName, imageFile);
-      
-      if (error) {
-        console.error('Image upload error:', error);
-        throw new Error('Failed to upload image');
-      }
-      
-      const { data: publicUrl } = supabase.storage
-        .from('restaurant-images')
-        .getPublicUrl(fileName);
-      
-      return publicUrl.publicUrl;
-    }
-    
-    return null;
+    setFormData(prev => ({
+      ...prev,
+      name: place.name,
+      address: place.address,
+      lat: place.lat,
+      lng: place.lng,
+      phone: place.phone || prev.phone,
+      website_url: place.website || prev.website_url,
+      price_range: place.priceLevel ? priceMap[place.priceLevel] || "$$" : prev.price_range,
+      opening_hours: place.openingHours ? parseGoogleHours(place.openingHours) : prev.opening_hours,
+    }));
+
+    toast.success("Restaurant details filled from search");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -134,16 +138,31 @@ const SubmitRestaurant = () => {
       return;
     }
 
+    // Check if any images are still uploading
+    if (images.some(img => img.isUploading)) {
+      toast.error("Please wait for all images to finish uploading");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Upload image if provided
-      const imageUrl = await uploadImage();
+      // Geocode the address if coordinates are not set
+      let lat = formData.lat;
+      let lng = formData.lng;
+      
+      if (lat === 0 && lng === 0 && formData.address) {
+        const geocoded = await geocodeAddress(formData.address);
+        if (geocoded) {
+          lat = geocoded.lat;
+          lng = geocoded.lng;
+        }
+      }
 
-      // Geocode the address (basic implementation - in production use a proper geocoding API)
-      // For now, we'll use default coordinates and let admins update
-      const lat = formData.lat || 40.7128;
-      const lng = formData.lng || -74.0060;
+      // Get image URLs
+      const imageUrls = images
+        .filter(img => !img.isUploading && img.url)
+        .map(img => img.url);
 
       const submissionData = {
         name: formData.name,
@@ -156,18 +175,19 @@ const SubmitRestaurant = () => {
         halal_status: formData.halal_status,
         halal_attributes: formData.halal_attributes,
         partial_halal_meats: formData.halal_status === "Partial Halal" ? formData.partial_halal_meats : [],
-        image_url: imageUrl,
+        image_urls: imageUrls,
         lat,
         lng,
+        opening_hours: formData.opening_hours,
       };
 
       const { error } = await supabase
         .from('restaurant_requests')
-        .insert({
+        .insert([{
           user_id: user.id,
-          submission_data: submissionData,
-          status: 'pending',
-        });
+          submission_data: submissionData as any,
+          status: 'pending' as const,
+        }]);
 
       if (error) throw error;
 
@@ -215,6 +235,39 @@ const SubmitRestaurant = () => {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Entry Mode Toggle */}
+                <Tabs value={entryMode} onValueChange={(v) => setEntryMode(v as "search" | "manual")}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="search" className="gap-2">
+                      <Search className="h-4 w-4" />
+                      Search to Auto-fill
+                    </TabsTrigger>
+                    <TabsTrigger value="manual" className="gap-2">
+                      <PenLine className="h-4 w-4" />
+                      Manual Entry
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="search" className="mt-4">
+                    <div className="space-y-2">
+                      <Label>Search for Restaurant</Label>
+                      <GooglePlacesAutocomplete
+                        onPlaceSelect={handlePlaceSelect}
+                        placeholder="Search by restaurant name or address..."
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Search will auto-fill name, address, phone, website, hours, and price range.
+                      </p>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="manual" className="mt-4">
+                    <p className="text-sm text-muted-foreground">
+                      Fill in all restaurant details manually below.
+                    </p>
+                  </TabsContent>
+                </Tabs>
+
                 {/* Basic Info */}
                 <div className="space-y-4">
                   <h3 className="font-semibold text-lg">Basic Information</h3>
@@ -289,13 +342,16 @@ const SubmitRestaurant = () => {
                       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="address"
-                        placeholder="Full street address"
+                        placeholder="Full street address (will be geocoded)"
                         value={formData.address}
                         onChange={(e) => handleInputChange("address", e.target.value)}
                         className="pl-10"
                         required
                       />
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Address will be automatically converted to map coordinates
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -328,6 +384,12 @@ const SubmitRestaurant = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Opening Hours */}
+                <OpeningHoursEditor
+                  value={formData.opening_hours}
+                  onChange={(hours) => setFormData(prev => ({ ...prev, opening_hours: hours }))}
+                />
 
                 {/* Halal Status */}
                 <div className="space-y-4">
@@ -396,86 +458,38 @@ const SubmitRestaurant = () => {
 
                 {/* Image Upload */}
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-lg">Restaurant Image</h3>
-                  
-                  <Tabs value={imageUploadMethod} onValueChange={(v) => setImageUploadMethod(v as "url" | "file")}>
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="url" className="flex items-center gap-2">
-                        <LinkIcon className="h-4 w-4" />
-                        Image URL
-                      </TabsTrigger>
-                      <TabsTrigger value="file" className="flex items-center gap-2">
-                        <Upload className="h-4 w-4" />
-                        Upload File
-                      </TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="url" className="mt-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="image_url">Image URL</Label>
-                        <Input
-                          id="image_url"
-                          placeholder="https://example.com/image.jpg"
-                          value={formData.image_url}
-                          onChange={(e) => handleInputChange("image_url", e.target.value)}
-                        />
-                        {formData.image_url && (
-                          <img 
-                            src={formData.image_url} 
-                            alt="Preview" 
-                            className="mt-2 rounded-lg max-h-48 object-cover"
-                            onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
-                          />
-                        )}
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="file" className="mt-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="image_file">Upload Image</Label>
-                        <Input
-                          id="image_file"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageFileChange}
-                          className="cursor-pointer"
-                        />
-                        {imagePreview && (
-                          <img 
-                            src={imagePreview} 
-                            alt="Preview" 
-                            className="mt-2 rounded-lg max-h-48 object-cover"
-                          />
-                        )}
-                      </div>
-                    </TabsContent>
-                  </Tabs>
+                  <h3 className="font-semibold text-lg">Restaurant Images (up to 10)</h3>
+                  <ImageUploadZone
+                    images={images}
+                    onImagesChange={setImages}
+                    maxImages={10}
+                    folderPrefix="submissions"
+                  />
                 </div>
 
-                {/* Submit */}
-                <div className="pt-4 border-t">
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    size="lg"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="h-4 w-4 mr-2" />
-                        Submit for Review
-                      </>
-                    )}
-                  </Button>
-                  <p className="text-sm text-muted-foreground text-center mt-3">
-                    Your submission will be reviewed within 24-48 hours
-                  </p>
-                </div>
+                {/* Submit Button */}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  size="lg"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      Submit for Review
+                    </>
+                  )}
+                </Button>
+
+                <p className="text-xs text-muted-foreground text-center">
+                  By submitting, you confirm that the information provided is accurate to the best of your knowledge.
+                </p>
               </form>
             </CardContent>
           </Card>
