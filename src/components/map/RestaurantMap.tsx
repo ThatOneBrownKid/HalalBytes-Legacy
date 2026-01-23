@@ -393,31 +393,31 @@ export const RestaurantMap = ({
           >
             {/* Only show popup on desktop - improved layout */}
             {!isMobile && (
-              <Popup className="restaurant-popup" closeButton={false}>
-                <div className="w-[280px]">
+              <Popup className="restaurant-popup" closeButton={true}>
+                <div className="popup-content">
                   {restaurant.images && restaurant.images[0] && (
-                    <div className="w-[calc(100%+24px)] h-28 -mx-3 -mt-3 mb-3 overflow-hidden">
+                    <div className="popup-image-wrapper">
                       <img 
                         src={restaurant.images[0]} 
                         alt={restaurant.name}
-                        className="w-full h-full object-cover"
+                        className="popup-image"
                       />
                     </div>
                   )}
-                  <div className="space-y-2 px-1">
-                    <h3 className="font-semibold text-sm text-foreground line-clamp-1">{restaurant.name}</h3>
-                    <div className="flex items-center gap-2 flex-wrap text-xs">
+                  <div className="popup-body">
+                    <h3 className="popup-title">{restaurant.name}</h3>
+                    <div className="popup-meta">
                       {restaurant.rating !== undefined && restaurant.rating > 0 && (
-                        <div className="flex items-center gap-0.5">
+                        <div className="popup-rating">
                           <Star className="h-3 w-3 fill-gold text-gold" />
-                          <span className="font-medium">{restaurant.rating.toFixed(1)}</span>
+                          <span>{restaurant.rating.toFixed(1)}</span>
                         </div>
                       )}
                       {restaurant.cuisine_type && (
-                        <span className="text-muted-foreground">{restaurant.cuisine_type}</span>
+                        <span className="popup-cuisine">{restaurant.cuisine_type}</span>
                       )}
                       {restaurant.price_range && (
-                        <span className="font-medium">{restaurant.price_range}</span>
+                        <span className="popup-price">{restaurant.price_range}</span>
                       )}
                     </div>
                     <Badge
