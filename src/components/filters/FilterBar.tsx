@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SlidersHorizontal, X, Check } from "lucide-react";
+import { SlidersHorizontal, X, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,6 +14,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 interface Filters {
@@ -21,6 +22,7 @@ interface Filters {
   cuisineTypes: string[];
   halalStatus: string[];
   attributes: string[];
+  openNow: boolean;
 }
 
 interface FilterBarProps {
@@ -29,7 +31,21 @@ interface FilterBarProps {
 }
 
 const priceOptions = ['$', '$$', '$$$', '$$$$'];
-const cuisineOptions = ['American', 'Middle Eastern', 'Indian', 'Turkish', 'Pakistani', 'Malaysian', 'Mediterranean', 'Asian Fusion'];
+const cuisineOptions = [
+  'American', 
+  'Middle Eastern', 
+  'South Asian', 
+  'Turkish', 
+  'Mediterranean', 
+  'Asian', 
+  'Halal',
+  'Seafood',
+  'Fast Food',
+  'BBQ',
+  'African',
+  'Caribbean',
+  'Latin American'
+];
 const halalOptions = ['Full Halal', 'Partial Halal'];
 const attributeOptions = ['No Pork', 'Hand Slaughtered', 'Alcohol Free', 'Prayer Space Available', 'Zabihah Certified'];
 
@@ -41,9 +57,10 @@ export const FilterBar = ({ filters, onFiltersChange }: FilterBarProps) => {
     filters.priceRange.length + 
     filters.cuisineTypes.length + 
     filters.halalStatus.length + 
-    filters.attributes.length;
+    filters.attributes.length +
+    (filters.openNow ? 1 : 0);
 
-  const toggleFilter = (category: keyof Filters, value: string) => {
+  const toggleFilter = (category: keyof Omit<Filters, 'openNow'>, value: string) => {
     setTempFilters(prev => ({
       ...prev,
       [category]: prev[category].includes(value)
@@ -58,17 +75,18 @@ export const FilterBar = ({ filters, onFiltersChange }: FilterBarProps) => {
   };
 
   const clearFilters = () => {
-    const emptyFilters = {
+    const emptyFilters: Filters = {
       priceRange: [],
       cuisineTypes: [],
       halalStatus: [],
-      attributes: []
+      attributes: [],
+      openNow: false
     };
     setTempFilters(emptyFilters);
     onFiltersChange(emptyFilters);
   };
 
-  const removeFilter = (category: keyof Filters, value: string) => {
+  const removeFilter = (category: keyof Omit<Filters, 'openNow'>, value: string) => {
     const newFilters = {
       ...filters,
       [category]: filters[category].filter(v => v !== value)
@@ -77,10 +95,30 @@ export const FilterBar = ({ filters, onFiltersChange }: FilterBarProps) => {
     setTempFilters(newFilters);
   };
 
+  const toggleOpenNow = () => {
+    const newFilters = { ...filters, openNow: !filters.openNow };
+    onFiltersChange(newFilters);
+    setTempFilters(newFilters);
+  };
+
   return (
     <div className="flex flex-col gap-3">
       {/* Filter Button & Quick Filters */}
       <div className="flex items-center gap-2 flex-wrap">
+        {/* Open Now Toggle - Quick Access */}
+        <Button
+          variant={filters.openNow ? "default" : "outline"}
+          size="sm"
+          onClick={toggleOpenNow}
+          className={cn(
+            "gap-2",
+            filters.openNow && "bg-halal-full hover:bg-halal-full/90"
+          )}
+        >
+          <Clock className="h-4 w-4" />
+          Open Now
+        </Button>
+
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
             <Button variant="outline" className="gap-2">
@@ -99,6 +137,21 @@ export const FilterBar = ({ filters, onFiltersChange }: FilterBarProps) => {
             </SheetHeader>
 
             <div className="py-6 space-y-6">
+              {/* Open Now Toggle */}
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="open-now" className="font-medium">Open Now</Label>
+                  <p className="text-xs text-muted-foreground">Only show currently open restaurants</p>
+                </div>
+                <Switch
+                  id="open-now"
+                  checked={tempFilters.openNow}
+                  onCheckedChange={(checked) => setTempFilters(prev => ({ ...prev, openNow: checked }))}
+                />
+              </div>
+
+              <Separator />
+
               {/* Price Range */}
               <div>
                 <h3 className="font-medium mb-3">Price Range</h3>
@@ -198,6 +251,24 @@ export const FilterBar = ({ filters, onFiltersChange }: FilterBarProps) => {
 
         {/* Quick filter chips for active filters */}
         <AnimatePresence>
+          {filters.openNow && (
+            <motion.div
+              key="open-now"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+            >
+              <Badge
+                variant="secondary"
+                className="gap-1 cursor-pointer pr-1.5 bg-halal-full/20 text-halal-full border-halal-full/30"
+                onClick={toggleOpenNow}
+              >
+                <Clock className="h-3 w-3" />
+                Open Now
+                <X className="h-3 w-3" />
+              </Badge>
+            </motion.div>
+          )}
           {filters.halalStatus.map((status) => (
             <motion.div
               key={status}
