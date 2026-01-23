@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -36,8 +36,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
-  Users, Store, ClipboardList, Shield, Plus, Search, 
-  Check, X, Eye, Trash2, Edit, Loader2 
+  Users, Store, ClipboardList, Plus,
+  Check, X, Loader2, ExternalLink
 } from "lucide-react";
 import { format } from "date-fns";
 import { AdminRestaurantForm } from "@/components/admin/AdminRestaurantForm";
@@ -65,9 +65,12 @@ interface RestaurantRequest {
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("pending");
+  
+  // Check if we should open edit mode for a specific restaurant
+  const editRestaurantId = searchParams.get('edit');
 
   // Fetch stats
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -109,7 +112,6 @@ const AdminDashboard = () => {
   // Approve request mutation
   const approveRequestMutation = useMutation({
     mutationFn: async ({ requestId, adminNotes }: { requestId: string; adminNotes?: string }) => {
-      // Get the request details
       const { data: request, error: fetchError } = await supabase
         .from("restaurant_requests")
         .select("*")
@@ -120,7 +122,6 @@ const AdminDashboard = () => {
 
       const submissionData = request.submission_data as RestaurantRequest["submission_data"];
 
-      // Create the restaurant
       const { error: insertError } = await supabase.from("restaurants").insert({
         name: submissionData.name || "Unnamed Restaurant",
         address: submissionData.address || "",
@@ -130,14 +131,13 @@ const AdminDashboard = () => {
         description: submissionData.description || null,
         phone: submissionData.phone || null,
         website_url: submissionData.website_url || null,
-        lat: 40.7128, // Default to NYC, should be geocoded
+        lat: 40.7128,
         lng: -74.0060,
         created_by: request.user_id,
       });
 
       if (insertError) throw insertError;
 
-      // Update request status
       const { error: updateError } = await supabase
         .from("restaurant_requests")
         .update({
@@ -200,100 +200,102 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="font-display text-3xl font-bold text-foreground mb-2">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">
             Admin Dashboard
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm sm:text-base">
             Manage users, restaurants, and review pending requests.
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+        {/* Stats Cards - Responsive grid */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
+          <Card className="p-2 sm:p-0">
+            <CardHeader className="flex flex-col sm:flex-row items-center sm:justify-between p-2 sm:pb-2 sm:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium text-center sm:text-left">Total Users</CardTitle>
+              <Users className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground hidden sm:block" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-2 pt-0 sm:p-6 sm:pt-0">
               {statsLoading ? (
-                <Skeleton className="h-8 w-20" />
+                <Skeleton className="h-6 sm:h-8 w-12 sm:w-20 mx-auto sm:mx-0" />
               ) : (
-                <div className="text-2xl font-bold">{stats?.totalUsers}</div>
+                <div className="text-lg sm:text-2xl font-bold text-center sm:text-left">{stats?.totalUsers}</div>
               )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Restaurants</CardTitle>
-              <Store className="h-4 w-4 text-muted-foreground" />
+          <Card className="p-2 sm:p-0">
+            <CardHeader className="flex flex-col sm:flex-row items-center sm:justify-between p-2 sm:pb-2 sm:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium text-center sm:text-left">Restaurants</CardTitle>
+              <Store className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground hidden sm:block" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-2 pt-0 sm:p-6 sm:pt-0">
               {statsLoading ? (
-                <Skeleton className="h-8 w-20" />
+                <Skeleton className="h-6 sm:h-8 w-12 sm:w-20 mx-auto sm:mx-0" />
               ) : (
-                <div className="text-2xl font-bold">{stats?.totalRestaurants}</div>
+                <div className="text-lg sm:text-2xl font-bold text-center sm:text-left">{stats?.totalRestaurants}</div>
               )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
-              <ClipboardList className="h-4 w-4 text-muted-foreground" />
+          <Card className="p-2 sm:p-0">
+            <CardHeader className="flex flex-col sm:flex-row items-center sm:justify-between p-2 sm:pb-2 sm:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium text-center sm:text-left">Pending</CardTitle>
+              <ClipboardList className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground hidden sm:block" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-2 pt-0 sm:p-6 sm:pt-0">
               {statsLoading ? (
-                <Skeleton className="h-8 w-20" />
+                <Skeleton className="h-6 sm:h-8 w-12 sm:w-20 mx-auto sm:mx-0" />
               ) : (
-                <div className="text-2xl font-bold">{stats?.pendingRequests}</div>
+                <div className="text-lg sm:text-2xl font-bold text-center sm:text-left">{stats?.pendingRequests}</div>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Tabs for different management sections */}
-        <Tabs defaultValue="requests" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="requests" className="gap-2">
-              <ClipboardList className="h-4 w-4" />
-              Requests
-              {stats?.pendingRequests ? (
-                <Badge variant="secondary" className="ml-1 bg-yellow-500/20 text-yellow-600">
-                  {stats.pendingRequests}
-                </Badge>
-              ) : null}
-            </TabsTrigger>
-            <TabsTrigger value="restaurants" className="gap-2">
-              <Store className="h-4 w-4" />
-              Restaurants
-            </TabsTrigger>
-            <TabsTrigger value="users" className="gap-2">
-              <Users className="h-4 w-4" />
-              Users
-            </TabsTrigger>
-            <TabsTrigger value="create" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add Restaurant
-            </TabsTrigger>
-          </TabsList>
+        {/* Tabs - Scrollable on mobile */}
+        <Tabs defaultValue={editRestaurantId ? "create" : "requests"} className="space-y-4 sm:space-y-6">
+          <ScrollArea className="w-full">
+            <TabsList className="inline-flex w-auto min-w-full sm:w-auto">
+              <TabsTrigger value="requests" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">
+                <ClipboardList className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden xs:inline">Requests</span>
+                {stats?.pendingRequests ? (
+                  <Badge variant="secondary" className="ml-1 bg-yellow-500/20 text-yellow-600 text-xs">
+                    {stats.pendingRequests}
+                  </Badge>
+                ) : null}
+              </TabsTrigger>
+              <TabsTrigger value="restaurants" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">
+                <Store className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden xs:inline">Restaurants</span>
+              </TabsTrigger>
+              <TabsTrigger value="users" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">
+                <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden xs:inline">Users</span>
+              </TabsTrigger>
+              <TabsTrigger value="create" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3">
+                <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden xs:inline">Add</span>
+              </TabsTrigger>
+            </TabsList>
+          </ScrollArea>
 
           {/* Requests Tab */}
           <TabsContent value="requests">
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <CardTitle>Restaurant Requests</CardTitle>
-                    <CardDescription>
-                      Review and approve or reject restaurant submissions.
+                    <CardTitle className="text-lg sm:text-xl">Restaurant Requests</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
+                      Review and approve or reject submissions.
                     </CardDescription>
                   </div>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[150px]">
+                    <SelectTrigger className="w-full sm:w-[150px]">
                       <SelectValue placeholder="Filter by status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -305,7 +307,7 @@ const AdminDashboard = () => {
                   </Select>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-2 sm:p-6 pt-0 sm:pt-0">
                 {requestsLoading ? (
                   <div className="space-y-4">
                     {Array.from({ length: 3 }).map((_, i) => (
@@ -313,115 +315,210 @@ const AdminDashboard = () => {
                     ))}
                   </div>
                 ) : requests && requests.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Restaurant</TableHead>
-                        <TableHead>Details</TableHead>
-                        <TableHead>Submitted</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                  <>
+                    {/* Mobile card view */}
+                    <div className="sm:hidden space-y-3">
                       {requests.map((request) => (
-                        <TableRow key={request.id}>
-                          <TableCell className="font-medium">
-                            {request.submission_data?.name || "Unnamed"}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            <div>{request.submission_data?.cuisine_type}</div>
-                            <div className="text-xs">{request.submission_data?.address}</div>
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {format(new Date(request.created_at), "MMM d, yyyy")}
-                          </TableCell>
-                          <TableCell>
+                        <Card key={request.id} className="p-3">
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <button
+                              className="font-medium text-sm text-left hover:text-primary transition-colors line-clamp-1"
+                              onClick={() => navigate(`/admin/request/${request.id}`)}
+                            >
+                              {request.submission_data?.name || "Unnamed"}
+                            </button>
                             <Badge variant="outline" className={getStatusBadgeColor(request.status)}>
                               {request.status}
                             </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => navigate(`/admin/request/${request.id}`)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              {request.status === "pending" && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                    onClick={() => approveRequestMutation.mutate({ requestId: request.id })}
-                                    disabled={approveRequestMutation.isPending}
-                                  >
-                                    {approveRequestMutation.isPending ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <Check className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                  <Dialog>
-                                    <DialogTrigger asChild>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-1">{request.submission_data?.cuisine_type}</p>
+                          <p className="text-xs text-muted-foreground mb-3 line-clamp-1">{request.submission_data?.address}</p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(request.created_at), "MMM d, yyyy")}
+                            </span>
+                            {request.status === "pending" && (
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                  onClick={() => approveRequestMutation.mutate({ requestId: request.id })}
+                                  disabled={approveRequestMutation.isPending}
+                                >
+                                  {approveRequestMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Check className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>Reject Request</DialogTitle>
+                                      <DialogDescription>
+                                        Please provide a reason for rejecting this request.
+                                      </DialogDescription>
+                                    </DialogHeader>
+                                    <form
+                                      onSubmit={(e) => {
+                                        e.preventDefault();
+                                        const formData = new FormData(e.currentTarget);
+                                        const notes = formData.get("notes") as string;
+                                        rejectRequestMutation.mutate({
+                                          requestId: request.id,
+                                          adminNotes: notes,
+                                        });
+                                      }}
+                                    >
+                                      <Textarea
+                                        name="notes"
+                                        placeholder="Reason for rejection..."
+                                        className="mb-4"
+                                        required
+                                      />
+                                      <DialogFooter>
+                                        <Button
+                                          type="submit"
+                                          variant="destructive"
+                                          disabled={rejectRequestMutation.isPending}
+                                        >
+                                          {rejectRequestMutation.isPending && (
+                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                          )}
+                                          Reject
+                                        </Button>
+                                      </DialogFooter>
+                                    </form>
+                                  </DialogContent>
+                                </Dialog>
+                              </div>
+                            )}
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+
+                    {/* Desktop table view */}
+                    <div className="hidden sm:block overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Restaurant</TableHead>
+                            <TableHead>Details</TableHead>
+                            <TableHead>Submitted</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {requests.map((request) => (
+                            <TableRow key={request.id}>
+                              <TableCell>
+                                <button
+                                  className="font-medium hover:text-primary transition-colors text-left"
+                                  onClick={() => navigate(`/admin/request/${request.id}`)}
+                                >
+                                  {request.submission_data?.name || "Unnamed"}
+                                </button>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                <div>{request.submission_data?.cuisine_type}</div>
+                                <div className="text-xs">{request.submission_data?.address}</div>
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {format(new Date(request.created_at), "MMM d, yyyy")}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={getStatusBadgeColor(request.status)}>
+                                  {request.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  {request.status === "pending" && (
+                                    <>
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                        onClick={() => approveRequestMutation.mutate({ requestId: request.id })}
+                                        disabled={approveRequestMutation.isPending}
                                       >
-                                        <X className="h-4 w-4" />
+                                        {approveRequestMutation.isPending ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <Check className="h-4 w-4" />
+                                        )}
                                       </Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                      <DialogHeader>
-                                        <DialogTitle>Reject Request</DialogTitle>
-                                        <DialogDescription>
-                                          Please provide a reason for rejecting this request.
-                                        </DialogDescription>
-                                      </DialogHeader>
-                                      <form
-                                        onSubmit={(e) => {
-                                          e.preventDefault();
-                                          const formData = new FormData(e.currentTarget);
-                                          const notes = formData.get("notes") as string;
-                                          rejectRequestMutation.mutate({
-                                            requestId: request.id,
-                                            adminNotes: notes,
-                                          });
-                                        }}
-                                      >
-                                        <Textarea
-                                          name="notes"
-                                          placeholder="Reason for rejection..."
-                                          className="mb-4"
-                                          required
-                                        />
-                                        <DialogFooter>
+                                      <Dialog>
+                                        <DialogTrigger asChild>
                                           <Button
-                                            type="submit"
-                                            variant="destructive"
-                                            disabled={rejectRequestMutation.isPending}
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                           >
-                                            {rejectRequestMutation.isPending ? (
-                                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                            ) : null}
-                                            Reject Request
+                                            <X className="h-4 w-4" />
                                           </Button>
-                                        </DialogFooter>
-                                      </form>
-                                    </DialogContent>
-                                  </Dialog>
-                                </>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                          <DialogHeader>
+                                            <DialogTitle>Reject Request</DialogTitle>
+                                            <DialogDescription>
+                                              Please provide a reason for rejecting this request.
+                                            </DialogDescription>
+                                          </DialogHeader>
+                                          <form
+                                            onSubmit={(e) => {
+                                              e.preventDefault();
+                                              const formData = new FormData(e.currentTarget);
+                                              const notes = formData.get("notes") as string;
+                                              rejectRequestMutation.mutate({
+                                                requestId: request.id,
+                                                adminNotes: notes,
+                                              });
+                                            }}
+                                          >
+                                            <Textarea
+                                              name="notes"
+                                              placeholder="Reason for rejection..."
+                                              className="mb-4"
+                                              required
+                                            />
+                                            <DialogFooter>
+                                              <Button
+                                                type="submit"
+                                                variant="destructive"
+                                                disabled={rejectRequestMutation.isPending}
+                                              >
+                                                {rejectRequestMutation.isPending && (
+                                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                )}
+                                                Reject Request
+                                              </Button>
+                                            </DialogFooter>
+                                          </form>
+                                        </DialogContent>
+                                      </Dialog>
+                                    </>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
                 ) : (
                   <p className="text-muted-foreground text-center py-8">
                     No requests found.
@@ -444,14 +541,18 @@ const AdminDashboard = () => {
           {/* Create Restaurant Tab */}
           <TabsContent value="create">
             <Card>
-              <CardHeader>
-                <CardTitle>Add New Restaurant</CardTitle>
-                <CardDescription>
-                  Create a restaurant directly without needing approval.
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-lg sm:text-xl">
+                  {editRestaurantId ? "Edit Restaurant" : "Add New Restaurant"}
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  {editRestaurantId 
+                    ? "Update restaurant details and information." 
+                    : "Create a restaurant directly without needing approval."}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <AdminRestaurantForm />
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <AdminRestaurantForm editRestaurantId={editRestaurantId || undefined} />
               </CardContent>
             </Card>
           </TabsContent>

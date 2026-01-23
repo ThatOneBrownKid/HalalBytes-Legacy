@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -12,7 +12,11 @@ import {
   Heart, 
   Share2, 
   X,
-  Check
+  Check,
+  Edit,
+  ChevronLeft,
+  ChevronRight,
+  Image as ImageIcon
 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -28,12 +32,33 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const RestaurantDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isFavorited, setIsFavorited] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+      setIsAdmin(!!data);
+    };
+    checkAdminRole();
+  }, [user]);
 
   // Fetch restaurant data
   const { data: restaurant, isLoading: restaurantLoading } = useQuery({
@@ -127,7 +152,6 @@ const RestaurantDetails = () => {
         return fallback;
       }
     }
-    // Ensure that if data is not a string, it's treated as T, returning fallback if it's null/undefined
     return (data as T) ?? fallback;
   };
   
@@ -138,18 +162,71 @@ const RestaurantDetails = () => {
     if (hours.openTime && hours.closeTime) {
       return `${hours.openTime} - ${hours.closeTime}`;
     }
-    return 'Open'; // Fallback for open but no specific times
+    return 'Open';
   };
   
   const openingHours = safeParse<Record<string, DayHours> | null>(restaurant?.opening_hours, null);
   const halalAttributes = safeParse<string[]>(restaurant?.halal_attributes, []);
+
+  // Keyboard navigation for lightbox
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (selectedImageIndex === null) return;
+    if (e.key === 'ArrowLeft') {
+      setSelectedImageIndex(prev => 
+        prev !== null ? (prev === 0 ? images.length - 1 : prev - 1) : null
+      );
+    } else if (e.key === 'ArrowRight') {
+      setSelectedImageIndex(prev => 
+        prev !== null ? (prev === images.length - 1 ? 0 : prev + 1) : null
+      );
+    } else if (e.key === 'Escape') {
+      setSelectedImageIndex(null);
+    }
+  }, [selectedImageIndex, images.length]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  // Touch swipe for mobile lightbox
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    if (isLeftSwipe && selectedImageIndex !== null) {
+      setSelectedImageIndex(prev => 
+        prev !== null ? (prev === images.length - 1 ? 0 : prev + 1) : null
+      );
+    }
+    if (isRightSwipe && selectedImageIndex !== null) {
+      setSelectedImageIndex(prev => 
+        prev !== null ? (prev === 0 ? images.length - 1 : prev - 1) : null
+      );
+    }
+  };
 
   if (restaurantLoading) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
         <div className="container mx-auto px-4 py-8">
-          <Skeleton className="h-[400px] w-full rounded-2xl mb-8" />
+          <Skeleton className="h-[300px] sm:h-[400px] w-full rounded-2xl mb-8" />
           <Skeleton className="h-10 w-1/2 mb-4" />
           <Skeleton className="h-6 w-1/3 mb-8" />
           <Skeleton className="h-32 w-full" />
@@ -170,86 +247,139 @@ const RestaurantDetails = () => {
     );
   }
 
+  // Calculate grid layout based on number of images
+  const getImageGridClass = (imageCount: number) => {
+    if (imageCount === 1) return "grid-cols-1";
+    if (imageCount === 2) return "grid-cols-2";
+    if (imageCount === 3) return "grid-cols-3";
+    return "grid-cols-4";
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Back Button */}
-      <div className="container mx-auto px-4 py-4">
+      {/* Back Button & Admin Edit */}
+      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <Button 
           variant="ghost" 
           onClick={() => navigate(-1)}
           className="gap-2"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back
+          <span className="hidden sm:inline">Back</span>
         </Button>
+        
+        {isAdmin && (
+          <Button 
+            variant="outline"
+            onClick={() => navigate(`/admin?edit=${id}`)}
+            className="gap-2"
+          >
+            <Edit className="h-4 w-4" />
+            <span className="hidden sm:inline">Edit Restaurant</span>
+          </Button>
+        )}
       </div>
 
-      {/* Image Gallery */}
-      <div className="container mx-auto px-4 mb-8">
-        <div className="grid grid-cols-4 gap-2 rounded-2xl overflow-hidden h-[300px] md:h-[400px]">
-          {/* Main Image */}
+      {/* Image Gallery - Adaptive layout */}
+      <div className="container mx-auto px-4 mb-6 sm:mb-8">
+        {images.length === 0 ? (
+          <div className="h-[200px] sm:h-[300px] bg-muted rounded-2xl flex items-center justify-center">
+            <div className="text-center text-muted-foreground">
+              <ImageIcon className="h-12 w-12 mx-auto mb-2" />
+              <p>No images available</p>
+            </div>
+          </div>
+        ) : images.length === 1 ? (
           <motion.div 
-            className="col-span-4 md:col-span-2 md:row-span-2 relative cursor-pointer overflow-hidden"
-            whileHover={{ scale: 1.02 }}
+            className="relative cursor-pointer overflow-hidden rounded-2xl h-[200px] sm:h-[400px]"
+            whileHover={{ scale: 1.01 }}
             onClick={() => setSelectedImageIndex(0)}
           >
-            {images[0] ? (
+            <img
+              src={images[0]}
+              alt={restaurant.name}
+              className="w-full h-full object-cover"
+            />
+          </motion.div>
+        ) : images.length <= 3 ? (
+          <div className={cn("grid gap-2 rounded-2xl overflow-hidden h-[200px] sm:h-[300px]", getImageGridClass(images.length))}>
+            {images.map((image, idx) => (
+              <motion.div
+                key={idx}
+                className="relative cursor-pointer overflow-hidden"
+                whileHover={{ scale: 1.02 }}
+                onClick={() => setSelectedImageIndex(idx)}
+              >
+                <img
+                  src={image}
+                  alt={`${restaurant.name} ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 gap-2 rounded-2xl overflow-hidden h-[200px] sm:h-[300px] md:h-[400px]">
+            {/* Main Image */}
+            <motion.div 
+              className="col-span-4 sm:col-span-2 sm:row-span-2 relative cursor-pointer overflow-hidden"
+              whileHover={{ scale: 1.01 }}
+              onClick={() => setSelectedImageIndex(0)}
+            >
               <img
                 src={images[0]}
                 alt={restaurant.name}
                 className="w-full h-full object-cover"
               />
-            ) : (
-              <div className="w-full h-full bg-muted flex items-center justify-center">
-                <MapPin className="h-12 w-12 text-muted-foreground" />
-              </div>
-            )}
-          </motion.div>
-
-          {/* Secondary Images */}
-          {images.slice(1, 5).map((image, idx) => (
-            <motion.div
-              key={idx}
-              className="hidden md:block relative cursor-pointer overflow-hidden"
-              whileHover={{ scale: 1.05 }}
-              onClick={() => setSelectedImageIndex(idx + 1)}
-            >
-              <img
-                src={image}
-                alt={`${restaurant.name} ${idx + 2}`}
-                className="w-full h-full object-cover"
-              />
-              {idx === 3 && images.length > 5 && (
-                <div className="absolute inset-0 bg-foreground/60 flex items-center justify-center">
-                  <span className="text-white font-medium">+{images.length - 5} more</span>
-                </div>
-              )}
             </motion.div>
-          ))}
-        </div>
+
+            {/* Secondary Images - horizontal scroll on mobile */}
+            <div className="col-span-4 sm:col-span-2 sm:row-span-2 flex sm:grid sm:grid-cols-2 sm:grid-rows-2 gap-2 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0">
+              {images.slice(1, 5).map((image, idx) => (
+                <motion.div
+                  key={idx}
+                  className="relative cursor-pointer overflow-hidden flex-shrink-0 w-32 h-24 sm:w-auto sm:h-auto rounded-lg sm:rounded-none"
+                  whileHover={{ scale: 1.05 }}
+                  onClick={() => setSelectedImageIndex(idx + 1)}
+                >
+                  <img
+                    src={image}
+                    alt={`${restaurant.name} ${idx + 2}`}
+                    className="w-full h-full object-cover"
+                  />
+                  {idx === 3 && images.length > 5 && (
+                    <div className="absolute inset-0 bg-foreground/60 flex items-center justify-center">
+                      <span className="text-white font-medium text-sm sm:text-base">+{images.length - 5} more</span>
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Content */}
       <div className="container mx-auto px-4 pb-16">
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-6 sm:space-y-8">
             {/* Header */}
             <div>
-              <div className="flex items-start justify-between gap-4 mb-4">
-                <div>
-                  <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-2">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+                <div className="flex-1">
+                  <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-2">
                     {restaurant.name}
                   </h1>
-                  <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap text-sm sm:text-base">
                     <div className="flex items-center gap-1">
-                      <Star className="h-5 w-5 fill-gold text-gold" />
+                      <Star className="h-4 w-4 sm:h-5 sm:w-5 fill-gold text-gold" />
                       <span className="font-semibold">{avgRating.toFixed(1)}</span>
                       <span className="text-muted-foreground">({reviews.length} reviews)</span>
                     </div>
-                    <span className="text-muted-foreground">•</span>
+                    <span className="text-muted-foreground hidden sm:inline">•</span>
                     <span>{restaurant.cuisine_type}</span>
                     <span className="text-muted-foreground">•</span>
                     <span className="font-medium">{restaurant.price_range}</span>
@@ -260,21 +390,21 @@ const RestaurantDetails = () => {
                     variant="outline"
                     size="icon"
                     onClick={() => setIsFavorited(!isFavorited)}
-                    className={cn(isFavorited && "text-destructive")}
+                    className={cn("h-10 w-10 sm:h-9 sm:w-9", isFavorited && "text-destructive")}
                   >
-                    <Heart className={cn("h-5 w-5", isFavorited && "fill-current")} />
+                    <Heart className={cn("h-5 w-5 sm:h-4 sm:w-4", isFavorited && "fill-current")} />
                   </Button>
-                  <Button variant="outline" size="icon">
-                    <Share2 className="h-5 w-5" />
+                  <Button variant="outline" size="icon" className="h-10 w-10 sm:h-9 sm:w-9">
+                    <Share2 className="h-5 w-5 sm:h-4 sm:w-4" />
                   </Button>
                 </div>
               </div>
 
               {/* Halal Status */}
-              <div className="flex items-center gap-3 flex-wrap mb-4">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap mb-4">
                 <Badge
                   className={cn(
-                    "text-sm px-3 py-1",
+                    "text-xs sm:text-sm px-2 sm:px-3 py-1",
                     restaurant.halal_status === 'Full Halal'
                       ? "bg-halal-full text-halal-full-foreground"
                       : "bg-halal-partial text-halal-partial-foreground"
@@ -283,14 +413,14 @@ const RestaurantDetails = () => {
                   {restaurant.halal_status}
                 </Badge>
                 {halalAttributes.map((attr) => (
-                  <Badge key={attr} variant="outline" className="gap-1">
+                  <Badge key={attr} variant="outline" className="gap-1 text-xs">
                     <Check className="h-3 w-3" />
                     {attr}
                   </Badge>
                 ))}
               </div>
 
-              <p className="text-muted-foreground">{restaurant.description}</p>
+              <p className="text-muted-foreground text-sm sm:text-base">{restaurant.description}</p>
             </div>
 
             <Separator />
@@ -298,34 +428,34 @@ const RestaurantDetails = () => {
             {/* Reviews Section */}
             <div>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="font-display text-2xl font-bold">Reviews</h2>
-                <Button>Write a Review</Button>
+                <h2 className="font-display text-xl sm:text-2xl font-bold">Reviews</h2>
+                <Button size="sm" className="sm:size-default">Write a Review</Button>
               </div>
 
               {reviews.length === 0 ? (
-                <div className="text-center py-12 bg-muted/30 rounded-xl">
+                <div className="text-center py-8 sm:py-12 bg-muted/30 rounded-xl">
                   <p className="text-muted-foreground">No reviews yet. Be the first to review!</p>
                 </div>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   {reviews.map((review) => (
                     <motion.div
                       key={review.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="p-4 rounded-xl bg-card border"
+                      className="p-3 sm:p-4 rounded-xl bg-card border"
                     >
                       <div className="flex items-start gap-3 mb-3">
-                        <Avatar>
+                        <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
                           <AvatarImage src={review.profile?.avatar_url || undefined} />
-                          <AvatarFallback className="bg-primary text-primary-foreground">
+                          <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm">
                             {review.profile?.username?.charAt(0) || 'U'}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <p className="font-medium">{review.profile?.username || 'Anonymous'}</p>
-                            <span className="text-sm text-muted-foreground">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-medium text-sm sm:text-base truncate">{review.profile?.username || 'Anonymous'}</p>
+                            <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0">
                               {new Date(review.created_at).toLocaleDateString()}
                             </span>
                           </div>
@@ -334,7 +464,7 @@ const RestaurantDetails = () => {
                               <Star
                                 key={idx}
                                 className={cn(
-                                  "h-4 w-4",
+                                  "h-3 w-3 sm:h-4 sm:w-4",
                                   idx < review.rating
                                     ? "fill-gold text-gold"
                                     : "fill-muted text-muted"
@@ -345,7 +475,7 @@ const RestaurantDetails = () => {
                         </div>
                       </div>
                       {review.comment && (
-                        <p className="text-muted-foreground">{review.comment}</p>
+                        <p className="text-muted-foreground text-sm">{review.comment}</p>
                       )}
                     </motion.div>
                   ))}
@@ -355,16 +485,16 @@ const RestaurantDetails = () => {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
-            <div className="sticky top-24 space-y-6">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="lg:sticky lg:top-24 space-y-4 sm:space-y-6">
               {/* Contact Card */}
-              <div className="p-6 rounded-2xl bg-card border">
-                <div className="space-y-4">
+              <div className="p-4 sm:p-6 rounded-2xl bg-card border">
+                <div className="space-y-3 sm:space-y-4">
                   <div className="flex items-start gap-3">
                     <MapPin className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Address</p>
-                      <p className="text-muted-foreground text-sm">{restaurant.address}</p>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm sm:text-base">Address</p>
+                      <p className="text-muted-foreground text-xs sm:text-sm break-words">{restaurant.address}</p>
                     </div>
                   </div>
 
@@ -372,10 +502,10 @@ const RestaurantDetails = () => {
                     <div className="flex items-start gap-3">
                       <Phone className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-medium">Phone</p>
+                        <p className="font-medium text-sm sm:text-base">Phone</p>
                         <a 
                           href={`tel:${restaurant.phone}`}
-                          className="text-primary text-sm hover:underline"
+                          className="text-primary text-xs sm:text-sm hover:underline"
                         >
                           {restaurant.phone}
                         </a>
@@ -386,13 +516,13 @@ const RestaurantDetails = () => {
                   {restaurant.website_url && (
                     <div className="flex items-start gap-3">
                       <Globe className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-medium">Website</p>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm sm:text-base">Website</p>
                         <a 
                           href={restaurant.website_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-primary text-sm hover:underline"
+                          className="text-primary text-xs sm:text-sm hover:underline truncate block"
                         >
                           Visit website
                         </a>
@@ -404,15 +534,15 @@ const RestaurantDetails = () => {
 
               {/* Hours Card */}
               {openingHours && Object.keys(openingHours).length > 0 && (
-                <div className="p-6 rounded-2xl bg-card border">
+                <div className="p-4 sm:p-6 rounded-2xl bg-card border">
                   <Accordion type="single" collapsible defaultValue="hours">
                     <AccordionItem value="hours" className="border-none">
                       <AccordionTrigger className="py-0 hover:no-underline">
                         <div className="flex items-center gap-3">
                           <Clock className="h-5 w-5 text-muted-foreground" />
                           <div className="text-left">
-                            <p className="font-medium">Hours</p>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="font-medium text-sm sm:text-base">Hours</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground">
                               Today: {formatHours(openingHours[today])}
                             </p>
                           </div>
@@ -424,7 +554,7 @@ const RestaurantDetails = () => {
                             <div 
                               key={day} 
                               className={cn(
-                                "flex justify-between text-sm",
+                                "flex justify-between text-xs sm:text-sm",
                                 day === today && "font-medium text-primary"
                               )}
                             >
@@ -440,9 +570,9 @@ const RestaurantDetails = () => {
               )}
 
               {/* Mini Map */}
-              <div className="h-48 rounded-2xl bg-muted overflow-hidden">
+              <div className="h-36 sm:h-48 rounded-2xl bg-muted overflow-hidden">
                 <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                  <MapPin className="h-8 w-8" />
+                  <MapPin className="h-6 w-6 sm:h-8 sm:w-8" />
                 </div>
               </div>
             </div>
@@ -457,14 +587,17 @@ const RestaurantDetails = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-foreground/90 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-foreground/95 flex items-center justify-center"
             onClick={() => setSelectedImageIndex(null)}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
           >
             {/* Close Button */}
             <Button
               variant="ghost"
               size="icon"
-              className="absolute top-4 right-4 text-white hover:bg-white/20 z-10"
+              className="absolute top-4 right-4 text-white hover:bg-white/20 z-10 h-12 w-12 sm:h-10 sm:w-10"
               onClick={() => setSelectedImageIndex(null)}
             >
               <X className="h-6 w-6" />
@@ -475,7 +608,7 @@ const RestaurantDetails = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 z-10 h-12 w-12"
+                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 z-10 h-12 w-12 sm:h-14 sm:w-14"
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedImageIndex(prev => 
@@ -483,7 +616,7 @@ const RestaurantDetails = () => {
                   );
                 }}
               >
-                <ArrowLeft className="h-6 w-6" />
+                <ChevronLeft className="h-8 w-8" />
               </Button>
             )}
             
@@ -492,7 +625,7 @@ const RestaurantDetails = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 z-10 h-12 w-12"
+                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 z-10 h-12 w-12 sm:h-14 sm:w-14"
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedImageIndex(prev => 
@@ -500,16 +633,21 @@ const RestaurantDetails = () => {
                   );
                 }}
               >
-                <ArrowLeft className="h-6 w-6 rotate-180" />
+                <ChevronRight className="h-8 w-8" />
               </Button>
             )}
             
             {/* Image Counter */}
             {images.length > 1 && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded-full">
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white text-sm bg-black/50 px-4 py-2 rounded-full">
                 {selectedImageIndex + 1} / {images.length}
               </div>
             )}
+            
+            {/* Swipe hint on mobile */}
+            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 text-white/60 text-xs sm:hidden">
+              Swipe to navigate • Tap to close
+            </div>
             
             <motion.img
               key={selectedImageIndex}
@@ -518,7 +656,7 @@ const RestaurantDetails = () => {
               exit={{ scale: 0.9, opacity: 0 }}
               src={images[selectedImageIndex]}
               alt={restaurant.name}
-              className="max-w-full max-h-[90vh] object-contain rounded-lg"
+              className="max-w-[95vw] max-h-[85vh] sm:max-w-[90vw] sm:max-h-[90vh] object-contain rounded-lg"
               onClick={(e) => e.stopPropagation()}
             />
           </motion.div>

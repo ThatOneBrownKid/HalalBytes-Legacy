@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Search, MapPin, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 const MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 
@@ -53,6 +54,66 @@ const generateSessionToken = () => {
   });
 };
 
+// Complete cuisine type mapping from Google Places to our system
+const cuisineTypeMap: Record<string, string> = {
+  // Direct mappings
+  'american_restaurant': 'American',
+  'chinese_restaurant': 'Chinese',
+  'italian_restaurant': 'Italian',
+  'indian_restaurant': 'South Asian',
+  'pakistani_restaurant': 'South Asian',
+  'bangladeshi_restaurant': 'South Asian',
+  'japanese_restaurant': 'Japanese',
+  'korean_restaurant': 'Korean',
+  'mexican_restaurant': 'Mexican',
+  'thai_restaurant': 'Thai',
+  'vietnamese_restaurant': 'Vietnamese',
+  'mediterranean_restaurant': 'Mediterranean',
+  'middle_eastern_restaurant': 'Middle Eastern',
+  'lebanese_restaurant': 'Middle Eastern',
+  'persian_restaurant': 'Middle Eastern',
+  'afghan_restaurant': 'Middle Eastern',
+  'turkish_restaurant': 'Turkish',
+  'greek_restaurant': 'Mediterranean',
+  'moroccan_restaurant': 'Middle Eastern',
+  'egyptian_restaurant': 'Middle Eastern',
+  'seafood_restaurant': 'Seafood',
+  'steak_house': 'American',
+  'pizza_restaurant': 'Italian',
+  'fast_food_restaurant': 'Fast Food',
+  'cafe': 'Cafe',
+  'bakery': 'Bakery',
+  'bar': 'Bar & Grill',
+  'brunch_restaurant': 'Brunch',
+  'breakfast_restaurant': 'Breakfast',
+  'hamburger_restaurant': 'American',
+  'sandwich_shop': 'Deli',
+  'ice_cream_shop': 'Dessert',
+  'coffee_shop': 'Cafe',
+  'french_restaurant': 'French',
+  'spanish_restaurant': 'Spanish',
+  'brazilian_restaurant': 'Latin American',
+  'caribbean_restaurant': 'Caribbean',
+  'african_restaurant': 'African',
+  'ethiopian_restaurant': 'African',
+  'indonesian_restaurant': 'Southeast Asian',
+  'malaysian_restaurant': 'Southeast Asian',
+  'filipino_restaurant': 'Southeast Asian',
+  'sushi_restaurant': 'Japanese',
+  'ramen_restaurant': 'Japanese',
+  'dim_sum_restaurant': 'Chinese',
+  'noodle_restaurant': 'Asian',
+  'bbq_restaurant': 'BBQ',
+  'chicken_restaurant': 'American',
+  'wings_restaurant': 'American',
+  'food_court': 'Food Court',
+  'buffet_restaurant': 'Buffet',
+  'fine_dining_restaurant': 'Fine Dining',
+  'vegan_restaurant': 'Vegan',
+  'vegetarian_restaurant': 'Vegetarian',
+  'restaurant': 'Other',
+};
+
 export const GooglePlacesAutocomplete = ({
   onPlaceSelect,
   placeholder = "Search for a restaurant...",
@@ -100,7 +161,7 @@ export const GooglePlacesAutocomplete = ({
     setError(null);
 
     try {
-      const response = await fetch(`/api/v1/places:autocomplete`, {
+      const response = await fetch(`https://places.googleapis.com/v1/places:autocomplete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,7 +181,6 @@ export const GooglePlacesAutocomplete = ({
         throw new Error(data.error?.message || "Failed to fetch predictions.");
       }
       
-      console.log("Places API (New) Autocomplete Response:", data);
       setPredictions(data.suggestions?.map((s: any) => s.placePrediction) || []);
 
     } catch (err: any) {
@@ -139,6 +199,41 @@ export const GooglePlacesAutocomplete = ({
     }, 300);
   };
 
+  // Download photo from Google and upload to Supabase storage
+  const downloadAndStorePhoto = async (photoName: string, restaurantName: string, index: number): Promise<string | null> => {
+    try {
+      const photoUrl = `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=800&maxWidthPx=1200&key=${MAPS_API_KEY}`;
+      
+      const response = await fetch(photoUrl);
+      if (!response.ok) return null;
+      
+      const blob = await response.blob();
+      const fileName = `google-${Date.now()}-${index}.jpg`;
+      const filePath = `${fileName}`;
+      
+      const { data, error } = await supabase.storage
+        .from('restaurant-images')
+        .upload(filePath, blob, {
+          contentType: 'image/jpeg',
+          upsert: false
+        });
+      
+      if (error) {
+        console.error('Error uploading photo:', error);
+        return null;
+      }
+      
+      const { data: urlData } = supabase.storage
+        .from('restaurant-images')
+        .getPublicUrl(filePath);
+      
+      return urlData.publicUrl;
+    } catch (err) {
+      console.error('Error downloading/storing photo:', err);
+      return null;
+    }
+  };
+
   const handleSelectPlace = async (prediction: PlacePrediction) => {
     setQuery(prediction.structuredFormat.mainText.text);
     setPredictions([]);
@@ -150,17 +245,18 @@ export const GooglePlacesAutocomplete = ({
         throw new Error("Google Maps API key not configured.");
       }
 
-      const fields = "id,displayName,formattedAddress,location,internationalPhoneNumber,websiteUri,priceLevel,regularOpeningHours,editorialSummary,primaryType,types,photos";
+      // Request generativeSummary for description
+      const fields = "id,displayName,formattedAddress,location,internationalPhoneNumber,websiteUri,priceLevel,regularOpeningHours,generativeSummary,editorialSummary,primaryType,types,photos";
       const params = new URLSearchParams({
-        fields: fields,
         sessionToken: sessionTokenRef.current,
       });
 
-      const response = await fetch(`/api/v1/places/${prediction.placeId}?${params.toString()}`, {
+      const response = await fetch(`https://places.googleapis.com/v1/places/${prediction.placeId}?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': MAPS_API_KEY,
+          'X-Goog-FieldMask': fields,
         },
       });
 
@@ -182,36 +278,6 @@ export const GooglePlacesAutocomplete = ({
         'PRICE_LEVEL_VERY_EXPENSIVE': 4,
       };
 
-      // Map Google primary types to cuisine types
-      const cuisineTypeMap: Record<string, string> = {
-        'american_restaurant': 'American',
-        'chinese_restaurant': 'Chinese',
-        'italian_restaurant': 'Italian',
-        'indian_restaurant': 'South Asian',
-        'japanese_restaurant': 'Japanese',
-        'korean_restaurant': 'Korean',
-        'mexican_restaurant': 'Mexican',
-        'thai_restaurant': 'Thai',
-        'vietnamese_restaurant': 'Vietnamese',
-        'mediterranean_restaurant': 'Mediterranean',
-        'middle_eastern_restaurant': 'Middle Eastern',
-        'turkish_restaurant': 'Turkish',
-        'seafood_restaurant': 'Seafood',
-        'steak_house': 'American',
-        'pizza_restaurant': 'Italian',
-        'fast_food_restaurant': 'Fast Food',
-        'cafe': 'Cafe',
-        'bakery': 'Bakery',
-        'bar': 'Bar & Grill',
-        'brunch_restaurant': 'Brunch',
-        'breakfast_restaurant': 'Breakfast',
-        'hamburger_restaurant': 'American',
-        'sandwich_shop': 'Deli',
-        'ice_cream_shop': 'Dessert',
-        'coffee_shop': 'Cafe',
-        'restaurant': 'Other',
-      };
-
       // Get cuisine type from primary type or types array
       let cuisineType = 'Other';
       if (data.primaryType && cuisineTypeMap[data.primaryType]) {
@@ -225,30 +291,50 @@ export const GooglePlacesAutocomplete = ({
         }
       }
 
-      // Get up to 5 photo URLs
-      const photoUrls: string[] = [];
-      if (data.photos && Array.isArray(data.photos)) {
-        for (let i = 0; i < Math.min(5, data.photos.length); i++) {
-          const photo = data.photos[i];
-          if (photo.name) {
-            // Photos API URL format: https://places.googleapis.com/v1/{name}/media?maxHeightPx=800&key=API_KEY
-            const photoUrl = `https://places.googleapis.com/v1/${photo.name}/media?maxHeightPx=800&maxWidthPx=1200&key=${MAPS_API_KEY}`;
-            photoUrls.push(photoUrl);
-          }
-        }
+      // Get description from generativeSummary first, then editorialSummary
+      let description: string | undefined;
+      if (data.generativeSummary?.overview?.text) {
+        description = data.generativeSummary.overview.text;
+      } else if (data.generativeSummary?.description?.text) {
+        description = data.generativeSummary.description.text;
+      } else if (data.editorialSummary?.text) {
+        description = data.editorialSummary.text;
       }
 
+      // Get up to 5 photos and download them to our storage
+      const photoUrls: string[] = [];
+      if (data.photos && Array.isArray(data.photos)) {
+        const photoPromises = data.photos.slice(0, 5).map((photo: any, index: number) => {
+          if (photo.name) {
+            return downloadAndStorePhoto(photo.name, data.displayName?.text || 'restaurant', index);
+          }
+          return Promise.resolve(null);
+        });
+        
+        const results = await Promise.all(photoPromises);
+        results.forEach(url => {
+          if (url) photoUrls.push(url);
+        });
+      }
+
+      // Parse display name correctly
+      const name = typeof data.displayName === 'object' && data.displayName?.text 
+        ? data.displayName.text 
+        : typeof data.displayName === 'string' 
+          ? data.displayName 
+          : prediction.structuredFormat.mainText.text;
+
       onPlaceSelect({
-        placeId: data.id,
-        name: typeof data.displayName === 'object' ? data.displayName.text : data.displayName,
+        placeId: data.id || prediction.placeId,
+        name,
         address: data.formattedAddress,
-        lat: data.location.latitude,
-        lng: data.location.longitude,
+        lat: data.location?.latitude || 0,
+        lng: data.location?.longitude || 0,
         phone: data.internationalPhoneNumber,
         website: data.websiteUri,
         priceLevel: data.priceLevel ? priceLevelMap[data.priceLevel] || 2 : undefined,
         openingHours: data.regularOpeningHours?.weekdayDescriptions,
-        description: data.editorialSummary?.text || undefined,
+        description,
         cuisineType,
         photos: photoUrls.length > 0 ? photoUrls : undefined,
       });

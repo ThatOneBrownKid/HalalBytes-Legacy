@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, lazy, Suspense, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Map, List } from "lucide-react";
+import { Map, List, Star, MapPin } from "lucide-react";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
@@ -50,6 +50,18 @@ const fetchIPLocation = async (): Promise<{ lat: number; lng: number; city: stri
   }
 };
 
+// Calculate distance in km between two coordinates
+const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 const Explore = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -73,6 +85,7 @@ const Explore = () => {
     east: number;
     west: number;
   } | null>(null);
+  const [maxDistance] = useState(50); // Max distance in km to show restaurants
 
   // Fetch IP-based location on mount
   useEffect(() => {
@@ -151,9 +164,15 @@ const Explore = () => {
     },
   });
 
-  // Filter restaurants based on active filters
+  // Filter restaurants based on active filters and distance
   const filteredRestaurants = useMemo(() => {
     return restaurants.filter((restaurant) => {
+      // Filter by distance from current map center
+      const distance = calculateDistance(mapCenter.lat, mapCenter.lng, restaurant.lat, restaurant.lng);
+      if (distance > maxDistance) {
+        return false;
+      }
+
       if (filters.priceRange.length > 0 && !filters.priceRange.includes(restaurant.price_range)) {
         return false;
       }
@@ -173,7 +192,7 @@ const Explore = () => {
       }
       return true;
     });
-  }, [restaurants, filters, searchQuery]);
+  }, [restaurants, filters, searchQuery, mapCenter, maxDistance]);
 
   // Sort with sponsored first
   const sortedRestaurants = useMemo(() => {
@@ -230,6 +249,11 @@ const Explore = () => {
       lng: r.lng,
       halal_status: r.halal_status,
       is_sponsored: r.is_sponsored,
+      cuisine_type: r.cuisine_type,
+      price_range: r.price_range,
+      rating: r.rating,
+      review_count: r.review_count,
+      image: r.images[0],
     }));
   }, [sortedRestaurants]);
 
@@ -237,17 +261,18 @@ const Explore = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
-      {/* Search & Filters Bar */}
+      {/* Search & Filters Bar - Mobile optimized */}
       <div className="border-b bg-card/50 backdrop-blur-sm sticky top-16 z-40">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1 flex items-center gap-3">
-              <div className="flex-1 max-w-md">
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex flex-col gap-3">
+            {/* Search row */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="flex-1 min-w-0">
                 <SearchBar
                   placeholder="Search restaurants..."
                   onSearch={(q) => setSearchQuery(q)}
                   showLocationButton={false}
-                  className="max-w-md"
+                  className="w-full"
                 />
               </div>
               <LocationSelector
@@ -255,7 +280,10 @@ const Explore = () => {
                 onLocationChange={handleLocationChange}
               />
             </div>
-            <FilterBar filters={filters} onFiltersChange={setFilters} />
+            {/* Filters row - scrollable on mobile */}
+            <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
+              <FilterBar filters={filters} onFiltersChange={setFilters} />
+            </div>
           </div>
         </div>
       </div>
@@ -297,15 +325,15 @@ const Explore = () => {
             mobileView === 'map' && "hidden lg:block"
           )}
         >
-          <div className="p-4 border-b flex items-center justify-between">
+          <div className="p-3 sm:p-4 border-b flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">{sortedRestaurants.length}</span> restaurants found
             </p>
           </div>
 
-          <div className="h-[calc(100vh-13rem)] overflow-hidden">
+          <div className="h-[calc(100vh-14rem)] sm:h-[calc(100vh-13rem)] overflow-hidden">
             {isLoading ? (
-              <div className="p-4 space-y-4">
+              <div className="p-3 sm:p-4 space-y-4">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="rounded-xl border p-4 space-y-3">
                     <Skeleton className="h-48 w-full rounded-lg" />
@@ -319,7 +347,7 @@ const Explore = () => {
                 ref={virtuosoRef}
                 data={sortedRestaurants}
                 itemContent={(index, restaurant) => (
-                  <div className="p-4">
+                  <div className="p-3 sm:p-4">
                     <RestaurantCard
                       restaurant={restaurant}
                       isHighlighted={highlightedCardId === restaurant.id || selectedRestaurantId === restaurant.id}
@@ -334,10 +362,10 @@ const Explore = () => {
           </div>
         </div>
 
-        {/* Map View */}
+        {/* Map View - Full height on mobile */}
         <div 
           className={cn(
-            "flex-1 h-[calc(100vh-10rem)]",
+            "flex-1 h-[calc(100vh-11rem)] sm:h-[calc(100vh-10rem)]",
             mobileView === 'list' && "hidden lg:block"
           )}
         >
@@ -348,6 +376,7 @@ const Explore = () => {
               onMarkerClick={handleMarkerClick}
               onBoundsChange={handleBoundsChange}
               center={mapCenter}
+              onNavigateToRestaurant={handleCardSelect}
             />
           </Suspense>
         </div>

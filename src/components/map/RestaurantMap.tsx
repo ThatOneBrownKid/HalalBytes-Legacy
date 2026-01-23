@@ -2,8 +2,9 @@ import { useRef, useCallback, useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import { Icon, divIcon, LatLngBounds } from "leaflet";
 import { motion } from "framer-motion";
-import { MapPin, Navigation, Loader2 } from "lucide-react";
+import { MapPin, Navigation, Loader2, Star, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { cn } from "@/lib/utils";
 import "leaflet/dist/leaflet.css";
@@ -15,6 +16,11 @@ interface Restaurant {
   lng: number;
   halal_status: 'Full Halal' | 'Partial Halal';
   is_sponsored: boolean;
+  cuisine_type?: string;
+  price_range?: string;
+  rating?: number;
+  review_count?: number;
+  image?: string;
 }
 
 interface RestaurantMapProps {
@@ -22,6 +28,7 @@ interface RestaurantMapProps {
   selectedId?: string;
   onMarkerClick?: (id: string) => void;
   onBoundsChange?: (bounds: { north: number; south: number; east: number; west: number }) => void;
+  onNavigateToRestaurant?: (id: string) => void;
   center?: { lat: number; lng: number };
   zoom?: number;
 }
@@ -116,7 +123,7 @@ const LocationButton = ({
         size="icon"
         variant="secondary"
         className={cn(
-          "shadow-lg border-2 transition-all",
+          "shadow-lg border-2 transition-all h-10 w-10 sm:h-8 sm:w-8",
           hasLocation 
             ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-400" 
             : "bg-card hover:bg-accent border-transparent"
@@ -126,9 +133,9 @@ const LocationButton = ({
         title={error || "Use my location"}
       >
         {loading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="h-5 w-5 sm:h-4 sm:w-4 animate-spin" />
         ) : (
-          <Navigation className={cn("h-4 w-4", hasLocation && "fill-current")} />
+          <Navigation className={cn("h-5 w-5 sm:h-4 sm:w-4", hasLocation && "fill-current")} />
         )}
       </Button>
     </div>
@@ -147,11 +154,88 @@ const userLocationIcon = divIcon({
   iconAnchor: [8, 8],
 });
 
+// Enhanced popup component for mobile
+const RestaurantPopup = ({ 
+  restaurant, 
+  onNavigate 
+}: { 
+  restaurant: Restaurant; 
+  onNavigate?: (id: string) => void;
+}) => {
+  return (
+    <div className="min-w-[200px] max-w-[280px]">
+      {/* Image */}
+      {restaurant.image && (
+        <div className="w-full h-24 -mx-3 -mt-3 mb-3 overflow-hidden rounded-t-lg">
+          <img 
+            src={restaurant.image} 
+            alt={restaurant.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
+      
+      {/* Content */}
+      <div className="space-y-2">
+        <h3 className="font-semibold text-sm text-foreground line-clamp-1">{restaurant.name}</h3>
+        
+        {/* Rating & cuisine */}
+        <div className="flex items-center gap-2 flex-wrap text-xs">
+          {restaurant.rating !== undefined && restaurant.rating > 0 && (
+            <div className="flex items-center gap-0.5">
+              <Star className="h-3 w-3 fill-gold text-gold" />
+              <span className="font-medium">{restaurant.rating.toFixed(1)}</span>
+              {restaurant.review_count !== undefined && (
+                <span className="text-muted-foreground">({restaurant.review_count})</span>
+              )}
+            </div>
+          )}
+          {restaurant.cuisine_type && (
+            <span className="text-muted-foreground">{restaurant.cuisine_type}</span>
+          )}
+          {restaurant.price_range && (
+            <span className="font-medium">{restaurant.price_range}</span>
+          )}
+        </div>
+        
+        {/* Halal badge */}
+        <Badge
+          variant="secondary"
+          className={cn(
+            "text-xs",
+            restaurant.halal_status === 'Full Halal' 
+              ? "bg-halal-full/20 text-halal-full" 
+              : "bg-halal-partial/20 text-halal-partial"
+          )}
+        >
+          {restaurant.halal_status}
+        </Badge>
+        
+        {/* View button for mobile */}
+        {onNavigate && (
+          <Button 
+            size="sm" 
+            className="w-full mt-2 gap-2"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigate(restaurant.id);
+            }}
+          >
+            View Details
+            <ExternalLink className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const RestaurantMap = ({
   restaurants,
   selectedId,
   onMarkerClick,
   onBoundsChange,
+  onNavigateToRestaurant,
   center = { lat: 40.7128, lng: -74.0060 },
   zoom = 12,
 }: RestaurantMapProps) => {
@@ -208,17 +292,10 @@ export const RestaurantMap = ({
             }}
           >
             <Popup>
-              <div className="min-w-[150px]">
-                <p className="font-semibold text-sm text-foreground">{restaurant.name}</p>
-                <p className={cn(
-                  "text-xs mt-1 inline-block px-2 py-0.5 rounded-full",
-                  restaurant.halal_status === 'Full Halal' 
-                    ? "bg-halal-full/20 text-halal-full" 
-                    : "bg-halal-partial/20 text-halal-partial"
-                )}>
-                  {restaurant.halal_status}
-                </p>
-              </div>
+              <RestaurantPopup 
+                restaurant={restaurant} 
+                onNavigate={onNavigateToRestaurant}
+              />
             </Popup>
           </Marker>
         ))}

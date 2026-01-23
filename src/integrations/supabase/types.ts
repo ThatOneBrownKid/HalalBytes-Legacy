@@ -153,6 +153,8 @@ export type Database = {
           created_by: string | null
           cuisine_type: string
           description: string | null
+          google_data_fetched_at: string | null
+          google_place_id: string | null
           halal_attributes: Json | null
           halal_status: Database["public"]["Enums"]["halal_status"]
           id: string
@@ -175,6 +177,8 @@ export type Database = {
           created_by?: string | null
           cuisine_type: string
           description?: string | null
+          google_data_fetched_at?: string | null
+          google_place_id?: string | null
           halal_attributes?: Json | null
           halal_status?: Database["public"]["Enums"]["halal_status"]
           id?: string
@@ -197,6 +201,8 @@ export type Database = {
           created_by?: string | null
           cuisine_type?: string
           description?: string | null
+          google_data_fetched_at?: string | null
+          google_place_id?: string | null
           halal_attributes?: Json | null
           halal_status?: Database["public"]["Enums"]["halal_status"]
           id?: string
