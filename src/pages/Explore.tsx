@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { checkIfOpen } from "@/utils/timeFormat";
 
 // Lazy load the map to avoid context issues
 const RestaurantMap = lazy(() => import("@/components/map/RestaurantMap").then(m => ({ default: m.RestaurantMap })));
@@ -33,6 +34,7 @@ interface Restaurant {
   images: string[];
   rating: number;
   review_count: number;
+  opening_hours: unknown;
 }
 
 // Fetch user's approximate location from IP
@@ -83,6 +85,7 @@ const Explore = () => {
     cuisineTypes: [] as string[],
     halalStatus: [] as string[],
     attributes: [] as string[],
+    openNow: false,
   });
   const [mapBounds, setMapBounds] = useState<{
     north: number;
@@ -165,6 +168,7 @@ const Explore = () => {
           ? reviewStatsByRestaurant[r.id].total / reviewStatsByRestaurant[r.id].count 
           : 0,
         review_count: reviewStatsByRestaurant[r.id]?.count || 0,
+        opening_hours: r.opening_hours,
       })) as Restaurant[];
     },
   });
@@ -176,6 +180,12 @@ const Explore = () => {
       const distance = calculateDistance(mapCenter.lat, mapCenter.lng, restaurant.lat, restaurant.lng);
       if (distance > maxDistance) {
         return false;
+      }
+
+      // Filter by Open Now
+      if (filters.openNow) {
+        const { isOpen } = checkIfOpen(restaurant.opening_hours);
+        if (!isOpen) return false;
       }
 
       if (filters.priceRange.length > 0 && !filters.priceRange.includes(restaurant.price_range)) {
