@@ -8,10 +8,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { User, Camera, Save, Loader2, Upload } from "lucide-react";
+import { User, Camera, Save, Loader2, Upload, AlertTriangle } from "lucide-react";
+
+// Helper to convert file to base64 data URI
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
+};
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -23,6 +34,7 @@ const Profile = () => {
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "");
   const [isEditing, setIsEditing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [moderationError, setModerationError] = useState<string | null>(null);
 
   // Sync state when profile loads
   useState(() => {
@@ -70,8 +82,28 @@ const Profile = () => {
     }
 
     setIsUploading(true);
+    setModerationError(null);
 
     try {
+      // First, moderate the image
+      const imageBase64 = await fileToBase64(file);
+      
+      const { data: moderationResult, error: moderationError } = await supabase.functions.invoke('moderate-review', {
+        body: { 
+          imageBase64,
+          moderationType: 'avatar'
+        }
+      });
+
+      if (moderationError) {
+        console.error('Moderation function error:', moderationError);
+        // Continue if moderation service fails
+      } else if (moderationResult && !moderationResult.safe) {
+        setModerationError(moderationResult.reason || 'This image violates our community guidelines.');
+        setIsUploading(false);
+        return;
+      }
+
       // Create unique file path
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
@@ -151,6 +183,16 @@ const Profile = () => {
         </h1>
 
         <Card>
+          {/* Moderation Error Alert */}
+          {moderationError && (
+            <div className="p-4 pb-0">
+              <Alert variant="destructive" className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <AlertDescription>{moderationError}</AlertDescription>
+              </Alert>
+            </div>
+          )}
+          
           <CardHeader className="text-center">
             <div className="relative w-24 h-24 mx-auto mb-4 group">
               <Avatar className="w-24 h-24 ring-4 ring-primary/10">

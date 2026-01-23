@@ -1,12 +1,23 @@
 import { useState, useRef, useCallback } from "react";
-import { Upload, X, Link as LinkIcon, Loader2, ImageIcon } from "lucide-react";
+import { Upload, X, Link as LinkIcon, Loader2, ImageIcon, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+// Helper to convert file to base64 data URI
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
+};
 
 interface UploadedImage {
   id: string;
@@ -34,6 +45,7 @@ export const ImageUploadZone = ({
   const [urlInput, setUrlInput] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [isDownloadingUrl, setIsDownloadingUrl] = useState(false);
+  const [moderationError, setModerationError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const generateId = () => `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -104,6 +116,7 @@ export const ImageUploadZone = ({
     }
     
     const filesToProcess = fileArray.slice(0, remainingSlots);
+    setModerationError(null);
     
     // Add placeholder entries for files being uploaded
     const newImages: UploadedImage[] = filesToProcess.map(file => ({
@@ -116,10 +129,31 @@ export const ImageUploadZone = ({
     const updatedImages = [...images, ...newImages];
     onImagesChange(updatedImages);
     
-    // Upload each file
+    // Upload each file with moderation
     for (let i = 0; i < newImages.length; i++) {
       const img = newImages[i];
       try {
+        // First, moderate the image (only for user-uploaded files, not URLs from Google)
+        const imageBase64 = await fileToBase64(img.file!);
+        
+        const { data: moderationResult, error: moderationFnError } = await supabase.functions.invoke('moderate-review', {
+          body: { 
+            imageBase64,
+            moderationType: 'image_only'
+          }
+        });
+
+        if (moderationFnError) {
+          console.error('Moderation function error:', moderationFnError);
+          // Continue with upload if moderation service fails
+        } else if (moderationResult && !moderationResult.safe) {
+          setModerationError(moderationResult.reason || 'This image violates our community guidelines.');
+          // Remove the failed image
+          const filtered = updatedImages.filter(p => p.id !== img.id);
+          onImagesChange(filtered);
+          continue;
+        }
+        
         const uploadedUrl = await uploadFileToStorage(img.file!);
         
         // Update the image with the real URL - need to get fresh state
@@ -249,6 +283,14 @@ export const ImageUploadZone = ({
 
   return (
     <div className="space-y-4">
+      {/* Moderation Error Alert */}
+      {moderationError && (
+        <Alert variant="destructive" className="flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <AlertDescription>{moderationError}</AlertDescription>
+        </Alert>
+      )}
+      
       <Tabs value={uploadMethod} onValueChange={(v) => setUploadMethod(v as "url" | "file")}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="file" className="flex items-center gap-2">

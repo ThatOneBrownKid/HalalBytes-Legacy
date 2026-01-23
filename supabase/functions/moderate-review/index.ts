@@ -6,8 +6,9 @@ const corsHeaders = {
 };
 
 interface ModerationRequest {
-  reviewText: string;
+  reviewText?: string;
   imageBase64?: string; // base64 encoded image with data URI prefix
+  moderationType: 'review' | 'image_only' | 'avatar';
 }
 
 interface ModerationResponse {
@@ -15,7 +16,7 @@ interface ModerationResponse {
   reason: string;
 }
 
-const SYSTEM_PROMPT = `You are an AI content moderator for a Halal restaurant review website. Your job is to analyze user-submitted text reviews and accompanying images to ensure they are appropriate.
+const REVIEW_SYSTEM_PROMPT = `You are an AI content moderator for a Halal restaurant review website. Your job is to analyze user-submitted text reviews and accompanying images to ensure they are appropriate.
 
 Your Rules:
 
@@ -24,6 +25,37 @@ Text Analysis: Scan the review text for profanity, hate speech, or highly offens
 Image Analysis: Scan the image specifically for alcoholic beverages (beer bottles, wine glasses filled with colored liquid, liquor bottles, bar taps).
 
 Contextual Nuance (Crucial): You must use the text to interpret the image. If the image shows a drink that looks like a cocktail, but the review explicitly mentions it is a "mocktail," "virgin drink," or "non-alcoholic," you must mark it as SAFE. Only flag it if it clearly appears to be alcohol and the text does not offer a halal explanation.
+
+Output Format: You must return a strict JSON object in this format: { "safe": boolean, "reason": "string (short explanation for the user if unsafe)" }
+
+If the content is safe, return: { "safe": true, "reason": "" }`;
+
+const IMAGE_ONLY_SYSTEM_PROMPT = `You are an AI content moderator for a Halal restaurant review website. Your job is to analyze user-submitted images to ensure they are appropriate.
+
+Your Rules:
+
+Image Analysis: Scan the image specifically for:
+1. Alcoholic beverages (beer bottles, wine glasses filled with colored liquid, liquor bottles, bar taps, cocktails)
+2. Inappropriate or offensive content
+3. Content unrelated to food/restaurants that may be harmful
+
+Important: Food photography, restaurant interiors, and non-alcoholic beverages are SAFE. Only flag clearly inappropriate content.
+
+Output Format: You must return a strict JSON object in this format: { "safe": boolean, "reason": "string (short explanation for the user if unsafe)" }
+
+If the content is safe, return: { "safe": true, "reason": "" }`;
+
+const AVATAR_SYSTEM_PROMPT = `You are an AI content moderator. Your job is to analyze user-submitted profile avatar images to ensure they are appropriate.
+
+Your Rules:
+
+Image Analysis: Scan the image for:
+1. Inappropriate or offensive content
+2. Nudity or sexually suggestive content
+3. Violence or gore
+4. Hate symbols
+
+Normal photos of people, landscapes, artwork, or abstract images are SAFE.
 
 Output Format: You must return a strict JSON object in this format: { "safe": boolean, "reason": "string (short explanation for the user if unsafe)" }
 
@@ -45,27 +77,62 @@ serve(async (req) => {
       );
     }
 
-    const { reviewText, imageBase64 }: ModerationRequest = await req.json();
+    const { reviewText, imageBase64, moderationType = 'review' }: ModerationRequest = await req.json();
 
-    if (!reviewText || reviewText.trim().length === 0) {
+    // For image_only and avatar, we need an image
+    if ((moderationType === 'image_only' || moderationType === 'avatar') && !imageBase64) {
+      return new Response(
+        JSON.stringify({ safe: true, reason: '' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // For review type, we need at least text
+    if (moderationType === 'review' && (!reviewText || reviewText.trim().length === 0)) {
       return new Response(
         JSON.stringify({ safe: false, reason: 'Review text is required.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Moderating review:', { 
-      textLength: reviewText.length, 
+    console.log('Moderating content:', { 
+      moderationType,
+      textLength: reviewText?.length || 0, 
       hasImage: !!imageBase64 
     });
 
+    // Select appropriate system prompt
+    let systemPrompt: string;
+    switch (moderationType) {
+      case 'avatar':
+        systemPrompt = AVATAR_SYSTEM_PROMPT;
+        break;
+      case 'image_only':
+        systemPrompt = IMAGE_ONLY_SYSTEM_PROMPT;
+        break;
+      default:
+        systemPrompt = REVIEW_SYSTEM_PROMPT;
+    }
+
     // Build the message content
-    const userContent: any[] = [
-      {
+    const userContent: any[] = [];
+
+    if (moderationType === 'review' && reviewText) {
+      userContent.push({
         type: 'text',
         text: `Please analyze this restaurant review for appropriateness:\n\n"${reviewText}"`
-      }
-    ];
+      });
+    } else if (moderationType === 'image_only') {
+      userContent.push({
+        type: 'text',
+        text: 'Please analyze this restaurant image for appropriateness.'
+      });
+    } else if (moderationType === 'avatar') {
+      userContent.push({
+        type: 'text',
+        text: 'Please analyze this profile avatar image for appropriateness.'
+      });
+    }
 
     // Add image if provided
     if (imageBase64) {
@@ -87,7 +154,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent }
         ],
         max_tokens: 150,
