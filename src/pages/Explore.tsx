@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useFavorites } from "@/hooks/useFavorites";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Lazy load the map to avoid context issues
 const RestaurantMap = lazy(() => import("@/components/map/RestaurantMap").then(m => ({ default: m.RestaurantMap })));
@@ -66,6 +68,9 @@ const Explore = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const virtuosoRef = useRef<VirtuosoHandle>(null);
+  const isMobile = useIsMobile();
+  const { isFavorited, toggleFavorite } = useFavorites();
+
   
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | undefined>();
@@ -253,9 +258,10 @@ const Explore = () => {
       price_range: r.price_range,
       rating: r.rating,
       review_count: r.review_count,
-      image: r.images[0],
+      images: r.images,
     }));
   }, [sortedRestaurants]);
+
 
   return (
     <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
@@ -352,9 +358,11 @@ const Explore = () => {
                       restaurant={restaurant}
                       isHighlighted={highlightedCardId === restaurant.id || selectedRestaurantId === restaurant.id}
                       onSelect={handleCardSelect}
-                      onFavorite={(id) => console.log("Favorite:", id)}
+                      onFavorite={toggleFavorite}
+                      isFavorited={isFavorited(restaurant.id)}
                     />
                   </div>
+
                 )}
                 className="scrollbar-thin"
               />
@@ -370,7 +378,7 @@ const Explore = () => {
           )}
           style={{ width: '100%' }}
         >
-          {(mobileView === 'map' || window.innerWidth >= 1024) && (
+          {(mobileView === 'map' || !isMobile) && (
             <Suspense fallback={<div className="flex items-center justify-center h-full bg-muted"><Skeleton className="w-full h-full" /></div>}>
               <RestaurantMap
                 restaurants={mapRestaurants}
@@ -379,9 +387,11 @@ const Explore = () => {
                 onBoundsChange={handleBoundsChange}
                 center={mapCenter}
                 onNavigateToRestaurant={handleCardSelect}
+                isMobile={isMobile}
               />
             </Suspense>
           )}
+
         </div>
       </div>
     </div>

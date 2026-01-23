@@ -1,8 +1,8 @@
 import { useRef, useCallback, useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import { Icon, divIcon, LatLngBounds } from "leaflet";
-import { motion } from "framer-motion";
-import { MapPin, Navigation, Loader2, Star, ExternalLink } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { MapPin, Navigation, Loader2, Star, ExternalLink, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -20,7 +20,7 @@ interface Restaurant {
   price_range?: string;
   rating?: number;
   review_count?: number;
-  image?: string;
+  images?: string[];
 }
 
 interface RestaurantMapProps {
@@ -31,6 +31,7 @@ interface RestaurantMapProps {
   onNavigateToRestaurant?: (id: string) => void;
   center?: { lat: number; lng: number };
   zoom?: number;
+  isMobile?: boolean;
 }
 
 // Custom marker icons
@@ -154,36 +155,120 @@ const userLocationIcon = divIcon({
   iconAnchor: [8, 8],
 });
 
-// Enhanced popup component for mobile
-const RestaurantPopup = ({ 
-  restaurant, 
-  onNavigate 
-}: { 
-  restaurant: Restaurant; 
+// Mobile annotation overlay with image carousel
+const MobileAnnotation = ({
+  restaurant,
+  onClose,
+  onNavigate,
+}: {
+  restaurant: Restaurant;
+  onClose: () => void;
   onNavigate?: (id: string) => void;
 }) => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const images = restaurant.images || [];
+  const touchStartX = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartX.current) return;
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0 && currentImageIndex < images.length - 1) {
+        setCurrentImageIndex(prev => prev + 1);
+      } else if (diff < 0 && currentImageIndex > 0) {
+        setCurrentImageIndex(prev => prev - 1);
+      }
+    }
+    touchStartX.current = null;
+  };
+
   return (
-    <div className="min-w-[200px] max-w-[280px]">
-      {/* Image */}
-      {restaurant.image && (
-        <div className="w-full h-24 -mx-3 -mt-3 mb-3 overflow-hidden rounded-t-lg">
-          <img 
-            src={restaurant.image} 
+    <motion.div
+      initial={{ opacity: 0, y: 100 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 100 }}
+      className="absolute bottom-4 left-4 right-4 z-[1000] bg-card rounded-xl shadow-elevated border overflow-hidden"
+    >
+      {/* Close button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute top-2 right-2 z-10 h-8 w-8 rounded-full bg-background/80 hover:bg-background"
+        onClick={onClose}
+      >
+        <X className="h-4 w-4" />
+      </Button>
+
+      {/* Image with swipe carousel */}
+      {images.length > 0 && (
+        <div 
+          className="relative h-32 overflow-hidden"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          <img
+            src={images[currentImageIndex]}
             alt={restaurant.name}
             className="w-full h-full object-cover"
           />
+          
+          {/* Image nav buttons */}
+          {images.length > 1 && (
+            <>
+              <Button
+                variant="secondary"
+                size="icon"
+                className="absolute left-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-background/90 hover:bg-background shadow-md"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentImageIndex(prev => prev === 0 ? images.length - 1 : prev - 1);
+                }}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="secondary"
+                size="icon"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-background/90 hover:bg-background shadow-md"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentImageIndex(prev => prev === images.length - 1 ? 0 : prev + 1);
+                }}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              
+              {/* Dots indicator */}
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                {images.map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={cn(
+                      "rounded-full transition-all",
+                      idx === currentImageIndex ? "bg-white w-3 h-1.5" : "bg-white/50 w-1.5 h-1.5"
+                    )}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
-      
+
       {/* Content */}
-      <div className="space-y-2">
-        <h3 className="font-semibold text-sm text-foreground line-clamp-1">{restaurant.name}</h3>
-        
-        {/* Rating & cuisine */}
-        <div className="flex items-center gap-2 flex-wrap text-xs">
+      <div className="p-3">
+        <h3 className="font-semibold text-base text-foreground line-clamp-1 mb-1">
+          {restaurant.name}
+        </h3>
+
+        <div className="flex items-center gap-2 flex-wrap text-xs mb-2">
           {restaurant.rating !== undefined && restaurant.rating > 0 && (
             <div className="flex items-center gap-0.5">
-              <Star className="h-3 w-3 fill-gold text-gold" />
+              <Star className="h-3.5 w-3.5 fill-gold text-gold" />
               <span className="font-medium">{restaurant.rating.toFixed(1)}</span>
               {restaurant.review_count !== undefined && (
                 <span className="text-muted-foreground">({restaurant.review_count})</span>
@@ -191,42 +276,39 @@ const RestaurantPopup = ({
             </div>
           )}
           {restaurant.cuisine_type && (
-            <span className="text-muted-foreground">{restaurant.cuisine_type}</span>
+            <span className="text-muted-foreground">• {restaurant.cuisine_type}</span>
           )}
           {restaurant.price_range && (
-            <span className="font-medium">{restaurant.price_range}</span>
+            <span className="font-medium">• {restaurant.price_range}</span>
           )}
         </div>
-        
-        {/* Halal badge */}
-        <Badge
-          variant="secondary"
-          className={cn(
-            "text-xs",
-            restaurant.halal_status === 'Full Halal' 
-              ? "bg-halal-full/20 text-halal-full" 
-              : "bg-halal-partial/20 text-halal-partial"
-          )}
-        >
-          {restaurant.halal_status}
-        </Badge>
-        
-        {/* View button for mobile */}
-        {onNavigate && (
-          <Button 
-            size="sm" 
-            className="w-full mt-2 gap-2"
-            onClick={(e) => {
-              e.stopPropagation();
-              onNavigate(restaurant.id);
-            }}
+
+        <div className="flex items-center gap-2">
+          <Badge
+            variant="secondary"
+            className={cn(
+              "text-xs",
+              restaurant.halal_status === 'Full Halal'
+                ? "bg-halal-full/20 text-halal-full"
+                : "bg-halal-partial/20 text-halal-partial"
+            )}
           >
-            View Details
-            <ExternalLink className="h-3 w-3" />
-          </Button>
-        )}
+            {restaurant.halal_status}
+          </Badge>
+          
+          {onNavigate && (
+            <Button
+              size="sm"
+              className="ml-auto gap-1"
+              onClick={() => onNavigate(restaurant.id)}
+            >
+              View Details
+              <ExternalLink className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -238,11 +320,27 @@ export const RestaurantMap = ({
   onNavigateToRestaurant,
   center = { lat: 40.7128, lng: -74.0060 },
   zoom = 12,
+  isMobile = false,
 }: RestaurantMapProps) => {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
 
   const handleLocationFound = useCallback((lat: number, lng: number) => {
     setUserLocation({ lat, lng });
+  }, []);
+
+  const handleMarkerClick = useCallback((restaurant: Restaurant) => {
+    if (isMobile) {
+      // On mobile, show the annotation overlay instead of navigating
+      setSelectedRestaurant(restaurant);
+    } else {
+      // On desktop, use the default popup behavior
+      onMarkerClick?.(restaurant.id);
+    }
+  }, [isMobile, onMarkerClick]);
+
+  const closeAnnotation = useCallback(() => {
+    setSelectedRestaurant(null);
   }, []);
 
   return (
@@ -286,21 +384,83 @@ export const RestaurantMap = ({
             position={[restaurant.lat, restaurant.lng]}
             icon={createMarkerIcon(
               getMarkerColor(restaurant),
-              selectedId === restaurant.id
+              selectedId === restaurant.id || selectedRestaurant?.id === restaurant.id
             )}
             eventHandlers={{
-              click: () => onMarkerClick?.(restaurant.id),
+              click: () => handleMarkerClick(restaurant),
             }}
           >
-            <Popup>
-              <RestaurantPopup 
-                restaurant={restaurant} 
-                onNavigate={onNavigateToRestaurant}
-              />
-            </Popup>
+            {/* Only show popup on desktop */}
+            {!isMobile && (
+              <Popup>
+                <div className="min-w-[200px] max-w-[280px]">
+                  {restaurant.images && restaurant.images[0] && (
+                    <div className="w-full h-24 -mx-3 -mt-3 mb-3 overflow-hidden rounded-t-lg">
+                      <img 
+                        src={restaurant.images[0]} 
+                        alt={restaurant.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-sm text-foreground line-clamp-1">{restaurant.name}</h3>
+                    <div className="flex items-center gap-2 flex-wrap text-xs">
+                      {restaurant.rating !== undefined && restaurant.rating > 0 && (
+                        <div className="flex items-center gap-0.5">
+                          <Star className="h-3 w-3 fill-gold text-gold" />
+                          <span className="font-medium">{restaurant.rating.toFixed(1)}</span>
+                        </div>
+                      )}
+                      {restaurant.cuisine_type && (
+                        <span className="text-muted-foreground">{restaurant.cuisine_type}</span>
+                      )}
+                      {restaurant.price_range && (
+                        <span className="font-medium">{restaurant.price_range}</span>
+                      )}
+                    </div>
+                    <Badge
+                      variant="secondary"
+                      className={cn(
+                        "text-xs",
+                        restaurant.halal_status === 'Full Halal' 
+                          ? "bg-halal-full/20 text-halal-full" 
+                          : "bg-halal-partial/20 text-halal-partial"
+                      )}
+                    >
+                      {restaurant.halal_status}
+                    </Badge>
+                    {onNavigateToRestaurant && (
+                      <Button 
+                        size="sm" 
+                        className="w-full mt-2 gap-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onNavigateToRestaurant(restaurant.id);
+                        }}
+                      >
+                        View Details
+                        <ExternalLink className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </Popup>
+            )}
           </Marker>
         ))}
       </MapContainer>
+
+      {/* Mobile annotation overlay */}
+      <AnimatePresence>
+        {isMobile && selectedRestaurant && (
+          <MobileAnnotation
+            restaurant={selectedRestaurant}
+            onClose={closeAnnotation}
+            onNavigate={onNavigateToRestaurant}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

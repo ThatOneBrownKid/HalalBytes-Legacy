@@ -36,15 +36,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ReviewForm } from "@/components/reviews/ReviewForm";
 import { useGoogleDataRefresh } from "@/hooks/useGoogleDataRefresh";
+import { useFavorites } from "@/hooks/useFavorites";
 
 const RestaurantDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [isFavorited, setIsFavorited] = useState(false);
+  const { isFavorited, toggleFavorite } = useFavorites();
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+
 
   // Check if user is admin
   useEffect(() => {
@@ -142,15 +145,18 @@ const RestaurantDetails = () => {
     : 0;
 
   const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const dayNamesDisplay: Record<string, string> = {
+    sun: 'Sunday',
+    mon: 'Monday', 
+    tue: 'Tuesday',
+    wed: 'Wednesday',
+    thu: 'Thursday',
+    fri: 'Friday',
+    sat: 'Saturday'
+  };
   const today = dayNames[new Date().getDay()];
 
   // --- Data Parsing and Formatting ---
-
-  interface DayHours {
-    isOpen: boolean;
-    openTime?: string;
-    closeTime?: string;
-  }
 
   // Safely parse potentially stringified JSON data
   const safeParse = <T,>(data: unknown, fallback: T): T => {
@@ -166,18 +172,35 @@ const RestaurantDetails = () => {
     return (data as T) ?? fallback;
   };
   
-  const formatHours = (hours: DayHours | undefined): string => {
-    if (!hours || !hours.isOpen) {
-      return 'Closed';
+  // Opening hours can be either:
+  // 1. Simple string format: { mon: "10:00 AM - 11:00 PM", ... }
+  // 2. Object format: { mon: { isOpen: true, openTime: "10:00", closeTime: "23:00" }, ... }
+  const formatHoursForDay = (hours: unknown, day: string): string => {
+    if (!hours || typeof hours !== 'object') return 'Closed';
+    
+    const dayData = (hours as Record<string, unknown>)[day];
+    
+    // Handle simple string format
+    if (typeof dayData === 'string') {
+      return dayData || 'Closed';
     }
-    if (hours.openTime && hours.closeTime) {
-      return `${hours.openTime} - ${hours.closeTime}`;
+    
+    // Handle object format
+    if (dayData && typeof dayData === 'object') {
+      const dayObj = dayData as { isOpen?: boolean; openTime?: string; closeTime?: string };
+      if (!dayObj.isOpen) return 'Closed';
+      if (dayObj.openTime && dayObj.closeTime) {
+        return `${dayObj.openTime} - ${dayObj.closeTime}`;
+      }
+      return 'Open';
     }
-    return 'Open';
+    
+    return 'Closed';
   };
   
-  const openingHours = safeParse<Record<string, DayHours> | null>(restaurant?.opening_hours, null);
+  const openingHours = safeParse<Record<string, unknown> | null>(restaurant?.opening_hours, null);
   const halalAttributes = safeParse<string[]>(restaurant?.halal_attributes, []);
+
 
   // Keyboard navigation for lightbox
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -301,7 +324,7 @@ const RestaurantDetails = () => {
         )}
       </div>
 
-      {/* Image Gallery - Adaptive layout */}
+      {/* Image Gallery - Adaptive layout with navigation */}
       <div className="container mx-auto px-4 mb-6 sm:mb-8">
         {images.length === 0 ? (
           <div className="h-[200px] sm:h-[300px] bg-muted rounded-2xl flex items-center justify-center">
@@ -312,7 +335,7 @@ const RestaurantDetails = () => {
           </div>
         ) : images.length === 1 ? (
           <motion.div 
-            className="relative cursor-pointer overflow-hidden rounded-2xl h-[200px] sm:h-[400px]"
+            className="relative cursor-pointer overflow-hidden rounded-2xl h-[200px] sm:h-[400px] group"
             whileHover={{ scale: 1.01 }}
             onClick={() => setSelectedImageIndex(0)}
           >
@@ -323,62 +346,102 @@ const RestaurantDetails = () => {
             />
           </motion.div>
         ) : images.length <= 3 ? (
-          <div className={cn("grid gap-2 rounded-2xl overflow-hidden h-[200px] sm:h-[300px]", getImageGridClass(images.length))}>
-            {images.map((image, idx) => (
-              <motion.div
-                key={idx}
-                className="relative cursor-pointer overflow-hidden"
-                whileHover={{ scale: 1.02 }}
-                onClick={() => setSelectedImageIndex(idx)}
-              >
-                <img
-                  src={image}
-                  alt={`${restaurant.name} ${idx + 1}`}
-                  className="w-full h-full object-cover"
-                />
-              </motion.div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-4 gap-2 rounded-2xl overflow-hidden h-[200px] sm:h-[300px] md:h-[400px]">
-            {/* Main Image */}
-            <motion.div 
-              className="col-span-4 sm:col-span-2 sm:row-span-2 relative cursor-pointer overflow-hidden"
-              whileHover={{ scale: 1.01 }}
-              onClick={() => setSelectedImageIndex(0)}
-            >
-              <img
-                src={images[0]}
-                alt={restaurant.name}
-                className="w-full h-full object-cover"
-              />
-            </motion.div>
-
-            {/* Secondary Images - horizontal scroll on mobile */}
-            <div className="col-span-4 sm:col-span-2 sm:row-span-2 flex sm:grid sm:grid-cols-2 sm:grid-rows-2 gap-2 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0">
-              {images.slice(1, 5).map((image, idx) => (
+          <div className="relative group">
+            <div className={cn("grid gap-2 rounded-2xl overflow-hidden h-[200px] sm:h-[300px]", getImageGridClass(images.length))}>
+              {images.map((image, idx) => (
                 <motion.div
                   key={idx}
-                  className="relative cursor-pointer overflow-hidden flex-shrink-0 w-32 h-24 sm:w-auto sm:h-auto rounded-lg sm:rounded-none"
-                  whileHover={{ scale: 1.05 }}
-                  onClick={() => setSelectedImageIndex(idx + 1)}
+                  className="relative cursor-pointer overflow-hidden"
+                  whileHover={{ scale: 1.02 }}
+                  onClick={() => setSelectedImageIndex(idx)}
                 >
                   <img
                     src={image}
-                    alt={`${restaurant.name} ${idx + 2}`}
+                    alt={`${restaurant.name} ${idx + 1}`}
                     className="w-full h-full object-cover"
                   />
-                  {idx === 3 && images.length > 5 && (
-                    <div className="absolute inset-0 bg-foreground/60 flex items-center justify-center">
-                      <span className="text-white font-medium text-sm sm:text-base">+{images.length - 5} more</span>
-                    </div>
-                  )}
                 </motion.div>
               ))}
             </div>
+            {/* Gallery nav buttons for desktop */}
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-background/90 hover:bg-background shadow-lg hidden sm:flex"
+              onClick={() => setSelectedImageIndex(0)}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-background/90 hover:bg-background shadow-lg hidden sm:flex"
+              onClick={() => setSelectedImageIndex(images.length - 1)}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </div>
+        ) : (
+          <div className="relative group">
+            <div className="grid grid-cols-4 gap-2 rounded-2xl overflow-hidden h-[200px] sm:h-[300px] md:h-[400px]">
+              {/* Main Image */}
+              <motion.div 
+                className="col-span-4 sm:col-span-2 sm:row-span-2 relative cursor-pointer overflow-hidden"
+                whileHover={{ scale: 1.01 }}
+                onClick={() => setSelectedImageIndex(0)}
+              >
+                <img
+                  src={images[0]}
+                  alt={restaurant.name}
+                  className="w-full h-full object-cover"
+                />
+              </motion.div>
+
+              {/* Secondary Images - horizontal scroll on mobile */}
+              <div className="col-span-4 sm:col-span-2 sm:row-span-2 flex sm:grid sm:grid-cols-2 sm:grid-rows-2 gap-2 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0">
+                {images.slice(1, 5).map((image, idx) => (
+                  <motion.div
+                    key={idx}
+                    className="relative cursor-pointer overflow-hidden flex-shrink-0 w-32 h-24 sm:w-auto sm:h-auto rounded-lg sm:rounded-none"
+                    whileHover={{ scale: 1.05 }}
+                    onClick={() => setSelectedImageIndex(idx + 1)}
+                  >
+                    <img
+                      src={image}
+                      alt={`${restaurant.name} ${idx + 2}`}
+                      className="w-full h-full object-cover"
+                    />
+                    {idx === 3 && images.length > 5 && (
+                      <div className="absolute inset-0 bg-foreground/60 flex items-center justify-center">
+                        <span className="text-white font-medium text-sm sm:text-base">+{images.length - 5} more</span>
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Gallery nav buttons for desktop */}
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-background/90 hover:bg-background shadow-lg hidden sm:flex"
+              onClick={() => setSelectedImageIndex(0)}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-background/90 hover:bg-background shadow-lg hidden sm:flex"
+              onClick={() => setSelectedImageIndex(images.length - 1)}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
           </div>
         )}
       </div>
+
 
       {/* Content */}
       <div className="container mx-auto px-4 pb-16">
@@ -408,15 +471,16 @@ const RestaurantDetails = () => {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => setIsFavorited(!isFavorited)}
-                    className={cn("h-10 w-10 sm:h-9 sm:w-9", isFavorited && "text-destructive")}
+                    onClick={() => id && toggleFavorite(id)}
+                    className={cn("h-10 w-10 sm:h-9 sm:w-9", id && isFavorited(id) && "text-destructive")}
                   >
-                    <Heart className={cn("h-5 w-5 sm:h-4 sm:w-4", isFavorited && "fill-current")} />
+                    <Heart className={cn("h-5 w-5 sm:h-4 sm:w-4", id && isFavorited(id) && "fill-current")} />
                   </Button>
                   <Button variant="outline" size="icon" className="h-10 w-10 sm:h-9 sm:w-9">
                     <Share2 className="h-5 w-5 sm:h-4 sm:w-4" />
                   </Button>
                 </div>
+
               </div>
 
               {/* Halal Status */}
@@ -585,10 +649,11 @@ const RestaurantDetails = () => {
                           <div className="text-left">
                             <p className="font-medium text-sm sm:text-base">Hours</p>
                             <p className="text-xs sm:text-sm text-muted-foreground">
-                              Today: {formatHours(openingHours[today])}
+                              Today: {formatHoursForDay(openingHours, today)}
                             </p>
                           </div>
                         </div>
+
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="pt-4 space-y-2">
@@ -600,11 +665,12 @@ const RestaurantDetails = () => {
                                 day === today && "font-medium text-primary"
                               )}
                             >
-                              <span className="capitalize">{day}</span>
-                              <span>{formatHours(openingHours[day])}</span>
+                              <span>{dayNamesDisplay[day]}</span>
+                              <span>{formatHoursForDay(openingHours, day)}</span>
                             </div>
                           ))}
                         </div>
+
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>

@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Star, MapPin, Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ImageCarousel } from "./ImageCarousel";
 import { cn } from "@/lib/utils";
 
 interface Restaurant {
@@ -34,30 +35,6 @@ export const RestaurantCard = ({
   onFavorite,
   isFavorited = false 
 }: RestaurantCardProps) => {
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isHovered, setIsHovered] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    if (isHovered && restaurant.images && restaurant.images.length > 1) {
-      intervalRef.current = setInterval(() => {
-        setCurrentImageIndex((prev) => (prev + 1) % restaurant.images.length);
-      }, 1500);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      setCurrentImageIndex(0);
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [isHovered, restaurant.images]);
-
   return (
     <motion.div
       layout
@@ -69,8 +46,6 @@ export const RestaurantCard = ({
       }}
       exit={{ opacity: 0, y: -20 }}
       whileHover={{ y: -4 }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       className={cn(
         "group relative rounded-xl overflow-hidden bg-card border transition-all duration-300 cursor-pointer",
         isHighlighted && "ring-2 ring-primary shadow-glow animate-pulse",
@@ -103,42 +78,15 @@ export const RestaurantCard = ({
         <Heart className={cn("h-4 w-4", isFavorited && "fill-current")} />
       </Button>
 
-      {/* Image Container */}
-      <div className="relative h-48 overflow-hidden bg-muted">
-        {restaurant.images && restaurant.images.length > 0 ? (
-          <>
-            <motion.img
-              key={currentImageIndex}
-              src={restaurant.images[currentImageIndex]}
-              alt={restaurant.name}
-              className="w-full h-full object-cover"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5 }}
-            />
-            {/* Image Dots Indicator */}
-            {restaurant.images.length > 1 && (
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                {restaurant.images.map((_, idx) => (
-                  <div
-                    key={idx}
-                    className={cn(
-                      "w-1.5 h-1.5 rounded-full transition-all duration-300",
-                      idx === currentImageIndex 
-                        ? "bg-white w-4" 
-                        : "bg-white/50"
-                    )}
-                  />
-                ))}
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-muted">
-            <MapPin className="h-8 w-8 text-muted-foreground" />
-          </div>
-        )}
-      </div>
+      {/* Image Carousel */}
+      <ImageCarousel
+        images={restaurant.images}
+        alt={restaurant.name}
+        className="h-48"
+        aspectRatio="auto"
+        showButtons={true}
+        showDots={true}
+      />
 
       {/* Content */}
       <div className="p-4">
