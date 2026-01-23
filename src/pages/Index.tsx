@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { MapPin, Star, Shield, Clock, ArrowRight } from "lucide-react";
 import { Header } from "@/components/layout/Header";
-import { SearchBar } from "@/components/search/SearchBar";
+import { LocationSearchBar } from "@/components/search/LocationSearchBar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -104,7 +104,7 @@ const Index = () => {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="max-w-xl mx-auto mb-8"
             >
-              <SearchBar
+              <LocationSearchBar
                 placeholder="Enter your city or zip code..."
                 onSearch={handleSearch}
                 onLocationSelect={handleLocationSelect}

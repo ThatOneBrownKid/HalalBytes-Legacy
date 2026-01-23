@@ -5,7 +5,7 @@ import { Map, List, Star, MapPin } from "lucide-react";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
-import { SearchBar } from "@/components/search/SearchBar";
+import { RestaurantSearchBar } from "@/components/search/RestaurantSearchBar";
 import { FilterBar, Filters } from "@/components/filters/FilterBar";
 import { RestaurantCard } from "@/components/restaurant/RestaurantCard";
 import { LocationSelector } from "@/components/location/LocationSelector";
@@ -285,10 +285,10 @@ const Explore = () => {
             {/* Search row */}
             <div className="flex items-center gap-2 sm:gap-3 w-full">
               <div className="flex-1 min-w-0 overflow-hidden">
-                <SearchBar
-                  placeholder="Search..."
+                <RestaurantSearchBar
+                  placeholder="Search restaurants..."
                   onSearch={(q) => setSearchQuery(q)}
-                  showLocationButton={false}
+                  onRestaurantSelect={(id) => navigate(`/restaurant/${id}`)}
                   className="w-full"
                 />
               </div>
@@ -296,9 +296,13 @@ const Explore = () => {
                 currentLocation={currentLocation}
                 onLocationChange={handleLocationChange}
               />
+              {/* Filters button close to location on desktop */}
+              <div className="hidden lg:block">
+                <FilterBar filters={filters} onFiltersChange={setFilters} />
+              </div>
             </div>
-            {/* Filters row - scrollable on mobile */}
-            <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-thin">
+            {/* Filters row - mobile only */}
+            <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-thin lg:hidden">
               <FilterBar filters={filters} onFiltersChange={setFilters} />
             </div>
           </div>

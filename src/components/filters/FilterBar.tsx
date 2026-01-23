@@ -106,20 +106,6 @@ export const FilterBar = ({ filters, onFiltersChange }: FilterBarProps) => {
     <div className="flex flex-col gap-3">
       {/* Filter Button & Quick Filters */}
       <div className="flex items-center gap-2 flex-wrap">
-        {/* Open Now Toggle - Quick Access */}
-        <Button
-          variant={filters.openNow ? "default" : "outline"}
-          size="sm"
-          onClick={toggleOpenNow}
-          className={cn(
-            "gap-2",
-            filters.openNow && "bg-halal-full hover:bg-halal-full/90"
-          )}
-        >
-          <Clock className="h-4 w-4" />
-          Open Now
-        </Button>
-
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
             <Button variant="outline" className="gap-2">

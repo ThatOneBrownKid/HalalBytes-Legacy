@@ -18,6 +18,7 @@ import Settings from "./pages/Settings";
 import MyRequests from "./pages/MyRequests";
 import Favorites from "./pages/Favorites";
 import SubmitRestaurant from "./pages/SubmitRestaurant";
+import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 import ErrorBoundary from "./components/ErrorBoundary";
 
@@ -34,6 +35,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/explore" element={<Explore />} />
+              <Route path="/about" element={<About />} />
               <Route 
                 path="/restaurant/:id" 
                 element={

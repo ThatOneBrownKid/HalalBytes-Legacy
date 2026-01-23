@@ -391,12 +391,12 @@ export const RestaurantMap = ({
               click: () => handleMarkerClick(restaurant),
             }}
           >
-            {/* Only show popup on desktop */}
+            {/* Only show popup on desktop - improved layout */}
             {!isMobile && (
-              <Popup>
-                <div className="min-w-[200px] max-w-[280px]">
+              <Popup className="restaurant-popup" closeButton={false}>
+                <div className="w-[280px]">
                   {restaurant.images && restaurant.images[0] && (
-                    <div className="w-full h-24 -mx-3 -mt-3 mb-3 overflow-hidden rounded-t-lg">
+                    <div className="w-[calc(100%+24px)] h-28 -mx-3 -mt-3 mb-3 overflow-hidden">
                       <img 
                         src={restaurant.images[0]} 
                         alt={restaurant.name}
@@ -404,7 +404,7 @@ export const RestaurantMap = ({
                       />
                     </div>
                   )}
-                  <div className="space-y-2">
+                  <div className="space-y-2 px-1">
                     <h3 className="font-semibold text-sm text-foreground line-clamp-1">{restaurant.name}</h3>
                     <div className="flex items-center gap-2 flex-wrap text-xs">
                       {restaurant.rating !== undefined && restaurant.rating > 0 && (

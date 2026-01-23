@@ -48,9 +48,10 @@ export const RestaurantCard = ({
       }}
       exit={{ opacity: 0, y: -20 }}
       whileHover={{ y: -4 }}
+      transition={{ duration: 0.3 }}
       className={cn(
-        "group relative rounded-xl overflow-hidden bg-card border transition-all duration-300 cursor-pointer",
-        isHighlighted && "ring-2 ring-primary shadow-glow animate-pulse",
+        "group relative rounded-xl overflow-hidden bg-card border transition-all duration-500 cursor-pointer",
+        isHighlighted && "ring-2 ring-primary shadow-elevated bg-primary/5",
         restaurant.is_sponsored && "ring-1 ring-gold/50"
       )}
       onClick={() => onSelect?.(restaurant.id)}
