@@ -21,7 +21,6 @@ interface Filters {
   priceRange: string[];
   cuisineTypes: string[];
   halalStatus: string[];
-  attributes: string[];
   openNow: boolean;
 }
 
@@ -47,7 +46,6 @@ const cuisineOptions = [
   'Latin American'
 ];
 const halalOptions = ['Full Halal', 'Partial Halal'];
-const attributeOptions = ['No Pork', 'Hand Slaughtered', 'Alcohol Free', 'Prayer Space Available', 'Zabihah Certified'];
 
 export const FilterBar = ({ filters, onFiltersChange }: FilterBarProps) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -57,7 +55,6 @@ export const FilterBar = ({ filters, onFiltersChange }: FilterBarProps) => {
     filters.priceRange.length + 
     filters.cuisineTypes.length + 
     filters.halalStatus.length + 
-    filters.attributes.length +
     (filters.openNow ? 1 : 0);
 
   const toggleFilter = (category: keyof Omit<Filters, 'openNow'>, value: string) => {
@@ -79,7 +76,6 @@ export const FilterBar = ({ filters, onFiltersChange }: FilterBarProps) => {
       priceRange: [],
       cuisineTypes: [],
       halalStatus: [],
-      attributes: [],
       openNow: false
     };
     setTempFilters(emptyFilters);
@@ -216,26 +212,6 @@ export const FilterBar = ({ filters, onFiltersChange }: FilterBarProps) => {
                 </div>
               </div>
 
-              <Separator />
-
-              {/* Attributes */}
-              <div>
-                <h3 className="font-medium mb-3">Attributes</h3>
-                <div className="space-y-2">
-                  {attributeOptions.map((attr) => (
-                    <div key={attr} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={attr}
-                        checked={tempFilters.attributes.includes(attr)}
-                        onCheckedChange={() => toggleFilter('attributes', attr)}
-                      />
-                      <Label htmlFor={attr} className="text-sm cursor-pointer">
-                        {attr}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
 
             <SheetFooter className="flex gap-2">

@@ -48,7 +48,7 @@ interface SubmissionData {
   cuisine_type?: string;
   price_range?: string;
   halal_status?: string;
-  halal_attributes?: string[];
+  
   partial_halal_meats?: string[];
   image_urls?: string[];
   lat?: number;
@@ -112,7 +112,7 @@ const RequestPreview = () => {
           lat,
           lng,
           opening_hours: submissionData.opening_hours || null,
-          halal_attributes: submissionData.halal_attributes || null,
+          
           created_by: request?.user_id,
         })
         .select()
@@ -307,12 +307,6 @@ const RequestPreview = () => {
                 >
                   {submissionData.halal_status || "Full Halal"}
                 </Badge>
-                {submissionData.halal_attributes?.map((attr) => (
-                  <Badge key={attr} variant="outline" className="gap-1">
-                    <Check className="h-3 w-3" />
-                    {attr.replace(/_/g, " ")}
-                  </Badge>
-                ))}
               </div>
 
               {submissionData.halal_status === "Partial Halal" && submissionData.partial_halal_meats && (

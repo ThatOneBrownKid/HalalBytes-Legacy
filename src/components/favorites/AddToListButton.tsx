@@ -24,20 +24,26 @@ export const AddToListButton = ({
   className,
 }: AddToListButtonProps) => {
   const { user } = useAuth();
-  const { listNames, isFavorited, getFavorite, moveToList, isPending } = useFavorites();
+  const { listNames, getFavorite, moveToList, isPending, addFavorite } = useFavorites();
   const [isOpen, setIsOpen] = useState(false);
   const [newListName, setNewListName] = useState("");
   const [showNewListInput, setShowNewListInput] = useState(false);
 
   const currentFavorite = getFavorite(restaurantId);
   const currentList = currentFavorite?.list_name;
+  const isInCustomList = currentList && currentList !== "Favorites";
 
   const handleSelectList = async (listName: string) => {
     if (!user) {
       toast.error("Please sign in to save to lists");
       return;
     }
-    await moveToList(restaurantId, listName);
+    // For custom lists, use addFavorite directly if not already in a list, or moveToList
+    if (currentFavorite) {
+      await moveToList(restaurantId, listName);
+    } else {
+      addFavorite({ restaurantId, listName });
+    }
     setIsOpen(false);
   };
 
@@ -53,9 +59,9 @@ export const AddToListButton = ({
     setIsOpen(false);
   };
 
-  // Default lists that are always available
-  const defaultLists = ["Favorites"];
-  const allLists = [...new Set([...defaultLists, ...listNames])];
+  // Only show custom lists (exclude default "Favorites" - that's handled by the heart button)
+  const customLists = listNames.filter(name => name !== "Favorites");
+  const allCustomLists = [...new Set(customLists)];
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -66,7 +72,7 @@ export const AddToListButton = ({
             size="icon"
             className={cn(
               "h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm transition-all",
-              isFavorited(restaurantId) && "text-primary",
+              isInCustomList && "text-primary",
               className
             )}
             onClick={(e) => {
@@ -77,7 +83,7 @@ export const AddToListButton = ({
             {isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <FolderPlus className={cn("h-4 w-4", isFavorited(restaurantId) && "fill-current")} />
+              <FolderPlus className={cn("h-4 w-4", isInCustomList && "fill-current")} />
             )}
           </Button>
         ) : (
@@ -98,10 +104,16 @@ export const AddToListButton = ({
       <PopoverContent className="w-64 p-2" align="end" onClick={(e) => e.stopPropagation()}>
         <div className="space-y-1">
           <p className="text-sm font-medium px-2 py-1.5 text-muted-foreground">
-            {currentList ? `In "${currentList}"` : "Save to list"}
+            {isInCustomList ? `In "${currentList}"` : "Add to a list"}
           </p>
           
-          {allLists.map((list) => (
+          {allCustomLists.length === 0 && !showNewListInput && (
+            <p className="text-xs text-muted-foreground px-3 py-2">
+              No custom lists yet. Create one below!
+            </p>
+          )}
+          
+          {allCustomLists.map((list) => (
             <button
               key={list}
               onClick={() => handleSelectList(list)}

@@ -94,18 +94,29 @@ export const useFavorites = () => {
     },
   });
 
-  // Toggle favorite
-  const toggleFavorite = async (restaurantId: string, listName = "Favorites") => {
+  // Toggle favorite (only for default "Favorites" list)
+  const toggleFavorite = async (restaurantId: string) => {
     if (!user) {
       toast.error("Please sign in to save favorites");
       return;
     }
 
-    if (isFavorited(restaurantId)) {
+    const existing = getFavorite(restaurantId);
+    
+    // Only toggle if it's in the default "Favorites" list or not favorited at all
+    if (existing && existing.list_name === "Favorites") {
       await removeFavoriteMutation.mutateAsync(restaurantId);
+    } else if (!existing) {
+      await addFavoriteMutation.mutateAsync({ restaurantId, listName: "Favorites" });
     } else {
-      await addFavoriteMutation.mutateAsync({ restaurantId, listName });
+      // It's in a custom list, just add to Favorites as well (or do nothing)
+      toast.info("This restaurant is already saved in a custom list");
     }
+  };
+
+  // Check if in default Favorites list specifically
+  const isInFavorites = (restaurantId: string) => {
+    return favorites.some((f) => f.restaurant_id === restaurantId && f.list_name === "Favorites");
   };
 
   // Move to a different list
@@ -162,6 +173,7 @@ export const useFavorites = () => {
     listNames,
     isLoading,
     isFavorited,
+    isInFavorites,
     getFavorite,
     toggleFavorite,
     moveToList,
