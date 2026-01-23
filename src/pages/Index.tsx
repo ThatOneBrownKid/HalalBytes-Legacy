@@ -46,12 +46,24 @@ const Index = () => {
       <Header />
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        {/* Background Pattern - Similar to About but with unique variations */}
-        <div className="absolute inset-0 bg-gradient-to-tl from-primary/8 via-transparent to-gold/8" />
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/15 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-gold/12 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 right-0 w-64 h-64 bg-halal-full/8 rounded-full blur-3xl" />
+      <section className="relative overflow-hidden min-h-[90vh] flex items-center">
+        {/* Layered Background Blurs */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-gold/5" />
+        
+        {/* Primary accent blurs */}
+        <div className="absolute -top-32 -left-32 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[120px]" />
+        <div className="absolute top-1/4 -right-20 w-[400px] h-[400px] bg-primary/15 rounded-full blur-[100px]" />
+        
+        {/* Gold accent blurs */}
+        <div className="absolute -bottom-40 left-1/3 w-[600px] h-[400px] bg-gold/15 rounded-full blur-[140px]" />
+        <div className="absolute top-20 right-1/4 w-[300px] h-[300px] bg-gold/10 rounded-full blur-[80px]" />
+        
+        {/* Subtle halal green accent */}
+        <div className="absolute bottom-1/4 -left-10 w-[250px] h-[250px] bg-halal-full/10 rounded-full blur-[90px]" />
+        <div className="absolute top-1/2 right-10 w-[200px] h-[200px] bg-halal-full/8 rounded-full blur-[70px]" />
+        
+        {/* Center glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-primary/5 rounded-full blur-[150px]" />
 
         <div className="container relative mx-auto px-4 py-20 md:py-32">
           <div className="max-w-3xl mx-auto text-center">
