@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,6 +64,7 @@ interface RestaurantRequest {
 }
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("pending");
@@ -340,72 +342,81 @@ const AdminDashboard = () => {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
-                            {request.status === "pending" && (
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                  onClick={() => approveRequestMutation.mutate({ requestId: request.id })}
-                                  disabled={approveRequestMutation.isPending}
-                                >
-                                  {approveRequestMutation.isPending ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Check className="h-4 w-4" />
-                                  )}
-                                </Button>
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent>
-                                    <DialogHeader>
-                                      <DialogTitle>Reject Request</DialogTitle>
-                                      <DialogDescription>
-                                        Please provide a reason for rejecting this request.
-                                      </DialogDescription>
-                                    </DialogHeader>
-                                    <form
-                                      onSubmit={(e) => {
-                                        e.preventDefault();
-                                        const formData = new FormData(e.currentTarget);
-                                        const notes = formData.get("notes") as string;
-                                        rejectRequestMutation.mutate({
-                                          requestId: request.id,
-                                          adminNotes: notes,
-                                        });
-                                      }}
-                                    >
-                                      <Textarea
-                                        name="notes"
-                                        placeholder="Reason for rejection..."
-                                        className="mb-4"
-                                        required
-                                      />
-                                      <DialogFooter>
-                                        <Button
-                                          type="submit"
-                                          variant="destructive"
-                                          disabled={rejectRequestMutation.isPending}
-                                        >
-                                          {rejectRequestMutation.isPending ? (
-                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                          ) : null}
-                                          Reject Request
-                                        </Button>
-                                      </DialogFooter>
-                                    </form>
-                                  </DialogContent>
-                                </Dialog>
-                              </div>
-                            )}
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate(`/admin/request/${request.id}`)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              {request.status === "pending" && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    onClick={() => approveRequestMutation.mutate({ requestId: request.id })}
+                                    disabled={approveRequestMutation.isPending}
+                                  >
+                                    {approveRequestMutation.isPending ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Check className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                  <Dialog>
+                                    <DialogTrigger asChild>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                      <DialogHeader>
+                                        <DialogTitle>Reject Request</DialogTitle>
+                                        <DialogDescription>
+                                          Please provide a reason for rejecting this request.
+                                        </DialogDescription>
+                                      </DialogHeader>
+                                      <form
+                                        onSubmit={(e) => {
+                                          e.preventDefault();
+                                          const formData = new FormData(e.currentTarget);
+                                          const notes = formData.get("notes") as string;
+                                          rejectRequestMutation.mutate({
+                                            requestId: request.id,
+                                            adminNotes: notes,
+                                          });
+                                        }}
+                                      >
+                                        <Textarea
+                                          name="notes"
+                                          placeholder="Reason for rejection..."
+                                          className="mb-4"
+                                          required
+                                        />
+                                        <DialogFooter>
+                                          <Button
+                                            type="submit"
+                                            variant="destructive"
+                                            disabled={rejectRequestMutation.isPending}
+                                          >
+                                            {rejectRequestMutation.isPending ? (
+                                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                            ) : null}
+                                            Reject Request
+                                          </Button>
+                                        </DialogFooter>
+                                      </form>
+                                    </DialogContent>
+                                  </Dialog>
+                                </>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}

@@ -320,17 +320,17 @@ export const ImageUploadZone = ({
         </TabsContent>
       </Tabs>
       
-      {/* Image Previews */}
+      {/* Image Previews - Smaller Thumbnails */}
       {images.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="flex flex-wrap gap-2">
           {images.map((img, index) => (
             <div 
               key={img.id} 
-              className="relative aspect-square rounded-lg overflow-hidden border bg-muted"
+              className="relative w-16 h-16 rounded-md overflow-hidden border bg-muted shrink-0"
             >
               {img.isUploading ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 </div>
               ) : (
                 <img 
@@ -342,12 +342,12 @@ export const ImageUploadZone = ({
               <button
                 type="button"
                 onClick={() => handleRemoveImage(img.id)}
-                className="absolute top-1 right-1 p-1 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+                className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
               >
-                <X className="h-3 w-3" />
+                <X className="h-2.5 w-2.5" />
               </button>
               {index === 0 && !img.isUploading && (
-                <span className="absolute bottom-1 left-1 text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
+                <span className="absolute bottom-0 left-0 right-0 text-[10px] bg-primary text-primary-foreground text-center py-0.5">
                   Primary
                 </span>
               )}

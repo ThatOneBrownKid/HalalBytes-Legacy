@@ -14,9 +14,12 @@ interface PlaceDetails {
   lng: number;
   phone?: string;
   website?: string;
-  priceLevel?: string; // e.g., "PRICE_LEVEL_MODERATE"
+  priceLevel?: number;
   openingHours?: string[];
   placeId: string;
+  description?: string;
+  cuisineType?: string;
+  photos?: string[];
 }
 
 interface PlacePrediction {
@@ -36,6 +39,7 @@ interface PlacePrediction {
 
 interface GooglePlacesAutocompleteProps {
   onPlaceSelect: (place: PlaceDetails) => void;
+  onPhotosFound?: (photoUrls: string[]) => void;
   placeholder?: string;
   className?: string;
 }
@@ -146,7 +150,7 @@ export const GooglePlacesAutocomplete = ({
         throw new Error("Google Maps API key not configured.");
       }
 
-      const fields = "id,displayName,formattedAddress,location,internationalPhoneNumber,websiteUri,priceLevel,regularOpeningHours";
+      const fields = "id,displayName,formattedAddress,location,internationalPhoneNumber,websiteUri,priceLevel,regularOpeningHours,editorialSummary,primaryType,types,photos";
       const params = new URLSearchParams({
         fields: fields,
         sessionToken: sessionTokenRef.current,
@@ -169,16 +173,84 @@ export const GooglePlacesAutocomplete = ({
       
       console.log("Places API (New) Details Response:", data);
 
+      // Parse price level from string like "PRICE_LEVEL_MODERATE" to number
+      const priceLevelMap: Record<string, number> = {
+        'PRICE_LEVEL_FREE': 0,
+        'PRICE_LEVEL_INEXPENSIVE': 1,
+        'PRICE_LEVEL_MODERATE': 2,
+        'PRICE_LEVEL_EXPENSIVE': 3,
+        'PRICE_LEVEL_VERY_EXPENSIVE': 4,
+      };
+
+      // Map Google primary types to cuisine types
+      const cuisineTypeMap: Record<string, string> = {
+        'american_restaurant': 'American',
+        'chinese_restaurant': 'Chinese',
+        'italian_restaurant': 'Italian',
+        'indian_restaurant': 'South Asian',
+        'japanese_restaurant': 'Japanese',
+        'korean_restaurant': 'Korean',
+        'mexican_restaurant': 'Mexican',
+        'thai_restaurant': 'Thai',
+        'vietnamese_restaurant': 'Vietnamese',
+        'mediterranean_restaurant': 'Mediterranean',
+        'middle_eastern_restaurant': 'Middle Eastern',
+        'turkish_restaurant': 'Turkish',
+        'seafood_restaurant': 'Seafood',
+        'steak_house': 'American',
+        'pizza_restaurant': 'Italian',
+        'fast_food_restaurant': 'Fast Food',
+        'cafe': 'Cafe',
+        'bakery': 'Bakery',
+        'bar': 'Bar & Grill',
+        'brunch_restaurant': 'Brunch',
+        'breakfast_restaurant': 'Breakfast',
+        'hamburger_restaurant': 'American',
+        'sandwich_shop': 'Deli',
+        'ice_cream_shop': 'Dessert',
+        'coffee_shop': 'Cafe',
+        'restaurant': 'Other',
+      };
+
+      // Get cuisine type from primary type or types array
+      let cuisineType = 'Other';
+      if (data.primaryType && cuisineTypeMap[data.primaryType]) {
+        cuisineType = cuisineTypeMap[data.primaryType];
+      } else if (data.types) {
+        for (const type of data.types) {
+          if (cuisineTypeMap[type]) {
+            cuisineType = cuisineTypeMap[type];
+            break;
+          }
+        }
+      }
+
+      // Get up to 5 photo URLs
+      const photoUrls: string[] = [];
+      if (data.photos && Array.isArray(data.photos)) {
+        for (let i = 0; i < Math.min(5, data.photos.length); i++) {
+          const photo = data.photos[i];
+          if (photo.name) {
+            // Photos API URL format: https://places.googleapis.com/v1/{name}/media?maxHeightPx=800&key=API_KEY
+            const photoUrl = `https://places.googleapis.com/v1/${photo.name}/media?maxHeightPx=800&maxWidthPx=1200&key=${MAPS_API_KEY}`;
+            photoUrls.push(photoUrl);
+          }
+        }
+      }
+
       onPlaceSelect({
         placeId: data.id,
-        name: data.displayName,
+        name: typeof data.displayName === 'object' ? data.displayName.text : data.displayName,
         address: data.formattedAddress,
         lat: data.location.latitude,
         lng: data.location.longitude,
         phone: data.internationalPhoneNumber,
         website: data.websiteUri,
-        priceLevel: data.priceLevel,
+        priceLevel: data.priceLevel ? priceLevelMap[data.priceLevel] || 2 : undefined,
         openingHours: data.regularOpeningHours?.weekdayDescriptions,
+        description: data.editorialSummary?.text || undefined,
+        cuisineType,
+        photos: photoUrls.length > 0 ? photoUrls : undefined,
       });
 
       // Reset session token for the next "session"

@@ -12,6 +12,7 @@ import RestaurantDetails from "./pages/RestaurantDetails";
 import SignIn from "./pages/auth/SignIn";
 import SignUp from "./pages/auth/SignUp";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import RequestPreview from "./pages/admin/RequestPreview";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import MyRequests from "./pages/MyRequests";
@@ -84,12 +85,20 @@ const App = () => (
                   </ProtectedRoute>
                 } 
               />
-              {/* Protected Admin Route - client-side check for UX, RLS enforces actual security */}
+              {/* Protected Admin Routes */}
               <Route 
                 path="/admin" 
                 element={
                   <ProtectedRoute requiredRole="admin">
                     <AdminDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/request/:id" 
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <RequestPreview />
                   </ProtectedRoute>
                 } 
               />

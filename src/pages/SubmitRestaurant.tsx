@@ -27,9 +27,32 @@ interface UploadedImage {
 }
 
 const cuisineTypes = [
-  "Middle Eastern", "Mediterranean", "South Asian", "Southeast Asian", 
-  "Turkish", "Persian", "American", "Mexican", "Chinese", "Japanese",
-  "African", "Caribbean", "Italian", "Fast Food", "Bakery", "Other"
+  "American",
+  "Middle Eastern",
+  "South Asian",
+  "Southeast Asian",
+  "Turkish",
+  "Persian",
+  "Mediterranean",
+  "Chinese",
+  "Japanese",
+  "Korean",
+  "Thai",
+  "Vietnamese",
+  "Mexican",
+  "Italian",
+  "African",
+  "Caribbean",
+  "Seafood",
+  "Fast Food",
+  "Cafe",
+  "Bakery",
+  "Bar & Grill",
+  "Brunch",
+  "Breakfast",
+  "Deli",
+  "Dessert",
+  "Other",
 ];
 
 const halalAttributes = [
@@ -93,7 +116,7 @@ const SubmitRestaurant = () => {
     }));
   };
 
-  const handlePlaceSelect = (place: {
+  const handlePlaceSelect = async (place: {
     name: string;
     address: string;
     lat: number;
@@ -102,6 +125,9 @@ const SubmitRestaurant = () => {
     website?: string;
     priceLevel?: number;
     openingHours?: string[];
+    description?: string;
+    cuisineType?: string;
+    photos?: string[];
   }) => {
     const priceMap: Record<number, "$" | "$$" | "$$$" | "$$$$"> = {
       1: "$",
@@ -120,7 +146,53 @@ const SubmitRestaurant = () => {
       website_url: place.website || prev.website_url,
       price_range: place.priceLevel ? priceMap[place.priceLevel] || "$$" : prev.price_range,
       opening_hours: place.openingHours ? parseGoogleHours(place.openingHours) : prev.opening_hours,
+      description: place.description || prev.description,
+      cuisine_type: place.cuisineType && cuisineTypes.includes(place.cuisineType) ? place.cuisineType : prev.cuisine_type,
     }));
+
+    // Download photos from Google and add to images
+    if (place.photos && place.photos.length > 0) {
+      toast.info(`Found ${place.photos.length} photos. Downloading...`);
+      
+      for (const photoUrl of place.photos) {
+        const newId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Add placeholder
+        setImages(prev => [...prev, { id: newId, url: photoUrl, isUploading: true }]);
+        
+        try {
+          // Download and upload to storage
+          const response = await fetch(photoUrl);
+          if (!response.ok) throw new Error('Failed to fetch photo');
+          
+          const blob = await response.blob();
+          const fileName = `submissions/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
+          
+          const { error } = await supabase.storage
+            .from('restaurant-images')
+            .upload(fileName, blob, {
+              cacheControl: '3600',
+              upsert: false,
+              contentType: 'image/jpeg'
+            });
+          
+          if (error) throw error;
+          
+          const { data: publicUrl } = supabase.storage
+            .from('restaurant-images')
+            .getPublicUrl(fileName);
+          
+          setImages(prev => prev.map(img => 
+            img.id === newId 
+              ? { ...img, url: publicUrl.publicUrl, isUploading: false }
+              : img
+          ));
+        } catch (error) {
+          console.error('Failed to download photo:', error);
+          setImages(prev => prev.filter(img => img.id !== newId));
+        }
+      }
+    }
 
     toast.success("Restaurant details filled from search");
   };
