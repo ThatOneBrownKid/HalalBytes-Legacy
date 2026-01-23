@@ -1,9 +1,10 @@
-import { useState } from "react";
 import { motion } from "framer-motion";
 import { Star, MapPin, Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
+import { OpenStatusBadge } from "./OpenStatusBadge";
+import { AddToListButton } from "@/components/favorites/AddToListButton";
 import { cn } from "@/lib/utils";
 
 interface Restaurant {
@@ -18,6 +19,7 @@ interface Restaurant {
   images: string[];
   rating: number;
   review_count: number;
+  opening_hours?: unknown;
 }
 
 interface RestaurantCardProps {
@@ -62,21 +64,27 @@ export const RestaurantCard = ({
         </div>
       )}
 
-      {/* Favorite Button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className={cn(
-          "absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm transition-all",
-          isFavorited && "text-destructive"
-        )}
-        onClick={(e) => {
-          e.stopPropagation();
-          onFavorite?.(restaurant.id);
-        }}
-      >
-        <Heart className={cn("h-4 w-4", isFavorited && "fill-current")} />
-      </Button>
+      {/* Action Buttons */}
+      <div className="absolute top-3 right-3 z-10 flex gap-1">
+        {/* Add to List Button */}
+        <AddToListButton restaurantId={restaurant.id} variant="icon" />
+        
+        {/* Favorite Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm transition-all",
+            isFavorited && "text-destructive"
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            onFavorite?.(restaurant.id);
+          }}
+        >
+          <Heart className={cn("h-4 w-4", isFavorited && "fill-current")} />
+        </Button>
+      </div>
 
       {/* Image Carousel */}
       <ImageCarousel
@@ -128,6 +136,11 @@ export const RestaurantCard = ({
           >
             {restaurant.halal_status}
           </Badge>
+          
+          {/* Open/Closed Status */}
+          {restaurant.opening_hours && (
+            <OpenStatusBadge openingHours={restaurant.opening_hours} showDetails={false} />
+          )}
         </div>
       </div>
     </motion.div>

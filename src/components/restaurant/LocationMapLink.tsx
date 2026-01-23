@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin, Navigation, ExternalLink, X } from "lucide-react";
+import { MapPin, Navigation, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,6 +20,7 @@ interface LocationMapLinkProps {
 export const LocationMapLink = ({ lat, lng, address, name }: LocationMapLinkProps) => {
   const isMobile = useIsMobile();
   const [showMapOptions, setShowMapOptions] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const encodedAddress = encodeURIComponent(address);
   const encodedName = encodeURIComponent(name);
@@ -29,6 +30,12 @@ export const LocationMapLink = ({ lat, lng, address, name }: LocationMapLinkProp
     apple: `https://maps.apple.com/?daddr=${lat},${lng}&q=${encodedName}`,
     waze: `https://waze.com/ul?ll=${lat},${lng}&navigate=yes&q=${encodedName}`,
   };
+
+  // Use multiple static map providers as fallbacks
+  const mapImageUrls = [
+    // OpenStreetMap static map via MapBox-like service
+    `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01}%2C${lat - 0.01}%2C${lng + 0.01}%2C${lat + 0.01}&layer=mapnik&marker=${lat}%2C${lng}`,
+  ];
 
   const handleClick = () => {
     if (isMobile) {
@@ -50,16 +57,25 @@ export const LocationMapLink = ({ lat, lng, address, name }: LocationMapLinkProp
         onClick={handleClick}
         className="relative w-full h-48 rounded-xl overflow-hidden cursor-pointer group border"
       >
-        {/* Static map image from OpenStreetMap */}
-        <img
-          src={`https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=15&size=600x300&maptype=osmarenderer&markers=${lat},${lng},red-pushpin`}
-          alt={`Map location of ${name}`}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
+        {/* Use an iframe for OSM embed which works more reliably */}
+        {!imageError ? (
+          <iframe
+            src={`https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.005}%2C${lat - 0.003}%2C${lng + 0.005}%2C${lat + 0.003}&layer=mapnik&marker=${lat}%2C${lng}`}
+            className="w-full h-full border-0 pointer-events-none"
+            title={`Map location of ${name}`}
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          // Fallback to a simple visual with coordinates
+          <div className="w-full h-full bg-muted flex flex-col items-center justify-center gap-2">
+            <MapPin className="h-8 w-8 text-primary" />
+            <span className="text-sm text-muted-foreground">View on Map</span>
+          </div>
+        )}
         
-        {/* Overlay with directions button */}
-        <div className="absolute inset-0 bg-foreground/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button className="gap-2">
+        {/* Overlay with directions button - click through */}
+        <div className="absolute inset-0 bg-foreground/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <Button className="gap-2 pointer-events-auto">
             <Navigation className="h-4 w-4" />
             Get Directions
           </Button>
@@ -68,7 +84,7 @@ export const LocationMapLink = ({ lat, lng, address, name }: LocationMapLinkProp
         {/* Corner badge */}
         <div className="absolute bottom-3 right-3 bg-background/90 backdrop-blur-sm rounded-lg px-3 py-1.5 flex items-center gap-2 text-sm">
           <MapPin className="h-4 w-4 text-primary" />
-          <span className="font-medium">View on Map</span>
+          <span className="font-medium">Directions</span>
           <ExternalLink className="h-3 w-3" />
         </div>
       </div>

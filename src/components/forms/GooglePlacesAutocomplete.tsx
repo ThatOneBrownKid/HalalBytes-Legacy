@@ -140,11 +140,17 @@ const cuisineTypeMap: Record<string, string> = {
   'poke_restaurant': 'Hawaiian',
   'hawaiian_restaurant': 'Hawaiian',
   'halal_restaurant': 'Halal',
+  'halal': 'Halal',
   'kosher_restaurant': 'Kosher',
   'food': 'Other',
   'restaurant': 'Other',
   'meal_delivery': 'Delivery',
   'meal_takeaway': 'Takeaway',
+  // Additional variations Google might return
+  'halal_food': 'Halal',
+  'halal food': 'Halal',
+  'Halal restaurant': 'Halal',
+  'Halal Restaurant': 'Halal',
 };
 
 export const GooglePlacesAutocomplete = ({

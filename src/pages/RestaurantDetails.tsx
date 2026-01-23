@@ -211,6 +211,23 @@ const RestaurantDetails = () => {
   // 1. Simple string format: { mon: "10:00 AM - 11:00 PM", ... } or { monday: "10:00 AM - 11:00 PM", ... }
   // 2. Object format: { mon: { isOpen: true, openTime: "10:00", closeTime: "23:00" }, ... }
   // 3. Object format with full names: { monday: { isOpen: true, openTime: "10:00", closeTime: "23:00" }, ... }
+  
+  // Helper to convert 24hr to 12hr format
+  const formatTo12Hour = (time24: string): string => {
+    if (!time24 || typeof time24 !== 'string') return time24;
+    if (time24.toLowerCase().includes('am') || time24.toLowerCase().includes('pm')) {
+      return time24;
+    }
+    const [hoursStr, minutesStr] = time24.split(':');
+    if (!hoursStr || !minutesStr) return time24;
+    const hours = parseInt(hoursStr, 10);
+    const minutes = parseInt(minutesStr, 10);
+    if (isNaN(hours) || isNaN(minutes)) return time24;
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+    return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
+  
   const formatHoursForDay = (hours: unknown, day: string): string => {
     if (!hours || typeof hours !== 'object') return 'Closed';
     
@@ -224,7 +241,13 @@ const RestaurantDetails = () => {
     
     // Handle simple string format
     if (typeof dayData === 'string') {
-      return dayData || 'Closed';
+      if (!dayData || dayData.toLowerCase() === 'closed') return 'Closed';
+      // Parse and reformat to 12hr
+      const parts = dayData.split(/\s*[-–]\s*/);
+      if (parts.length === 2) {
+        return `${formatTo12Hour(parts[0].trim())} - ${formatTo12Hour(parts[1].trim())}`;
+      }
+      return dayData;
     }
     
     // Handle object format
@@ -232,7 +255,7 @@ const RestaurantDetails = () => {
       const dayObj = dayData as { isOpen?: boolean; openTime?: string; closeTime?: string };
       if (!dayObj.isOpen) return 'Closed';
       if (dayObj.openTime && dayObj.closeTime) {
-        return `${dayObj.openTime} - ${dayObj.closeTime}`;
+        return `${formatTo12Hour(dayObj.openTime)} - ${formatTo12Hour(dayObj.closeTime)}`;
       }
       return 'Open';
     }
