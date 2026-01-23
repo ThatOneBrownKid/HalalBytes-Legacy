@@ -41,6 +41,7 @@ import { useGoogleDataRefresh } from "@/hooks/useGoogleDataRefresh";
 import { useFavorites } from "@/hooks/useFavorites";
 import { LocationMapLink } from "@/components/restaurant/LocationMapLink";
 import { AddToListButton } from "@/components/favorites/AddToListButton";
+import { ImageGallery } from "@/components/restaurant/ImageGallery";
 
 
 const RestaurantDetails = () => {
@@ -390,47 +391,13 @@ const RestaurantDetails = () => {
         )}
       </div>
 
-      {/* Image Gallery - Horizontally scrollable */}
+      {/* Image Gallery - Primary + Thumbnails Layout */}
       <div className="container mx-auto px-4 mb-6 sm:mb-8">
-        {images.length === 0 ? (
-          <div className="h-[200px] sm:h-[300px] bg-muted rounded-2xl flex items-center justify-center">
-            <div className="text-center text-muted-foreground">
-              <ImageIcon className="h-12 w-12 mx-auto mb-2" />
-              <p>No images available</p>
-            </div>
-          </div>
-        ) : images.length === 1 ? (
-          <motion.div 
-            className="relative cursor-pointer overflow-hidden rounded-2xl h-[200px] sm:h-[400px] group"
-            whileHover={{ scale: 1.01 }}
-            onClick={() => setSelectedImageIndex(0)}
-          >
-            <img
-              src={images[0]}
-              alt={restaurant.name}
-              className="w-full h-full object-cover"
-            />
-          </motion.div>
-        ) : (
-          <div className="overflow-x-auto pb-2 -mx-4 px-4">
-            <div className="flex gap-3" style={{ width: 'max-content' }}>
-              {images.map((image, idx) => (
-                <motion.div
-                  key={idx}
-                  className="relative cursor-pointer overflow-hidden rounded-xl h-[200px] sm:h-[300px] w-[280px] sm:w-[400px] flex-shrink-0"
-                  whileHover={{ scale: 1.02 }}
-                  onClick={() => setSelectedImageIndex(idx)}
-                >
-                  <img
-                    src={image}
-                    alt={`${restaurant.name} ${idx + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        )}
+        <ImageGallery 
+          images={images} 
+          name={restaurant.name} 
+          onImageClick={(index) => setSelectedImageIndex(index)} 
+        />
       </div>
 
 

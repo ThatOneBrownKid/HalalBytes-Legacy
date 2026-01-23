@@ -6,7 +6,7 @@ import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { SearchBar } from "@/components/search/SearchBar";
-import { FilterBar } from "@/components/filters/FilterBar";
+import { FilterBar, Filters } from "@/components/filters/FilterBar";
 import { RestaurantCard } from "@/components/restaurant/RestaurantCard";
 import { LocationSelector } from "@/components/location/LocationSelector";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ import { checkIfOpen } from "@/utils/timeFormat";
 
 // Lazy load the map to avoid context issues
 const RestaurantMap = lazy(() => import("@/components/map/RestaurantMap").then(m => ({ default: m.RestaurantMap })));
+
+const distanceOptions = [5, 10, 25, 50, 100];
 
 interface Restaurant {
   id: string;
@@ -85,6 +87,7 @@ const Explore = () => {
     cuisineTypes: [] as string[],
     halalStatus: [] as string[],
     openNow: false,
+    distance: 50,
   });
   const [mapBounds, setMapBounds] = useState<{
     north: number;
@@ -92,7 +95,6 @@ const Explore = () => {
     east: number;
     west: number;
   } | null>(null);
-  const [maxDistance] = useState(50); // Max distance in km to show restaurants
 
   // Fetch IP-based location on mount
   useEffect(() => {
@@ -177,7 +179,7 @@ const Explore = () => {
     return restaurants.filter((restaurant) => {
       // Filter by distance from current map center
       const distance = calculateDistance(mapCenter.lat, mapCenter.lng, restaurant.lat, restaurant.lng);
-      if (distance > maxDistance) {
+      if (distance > filters.distance) {
         return false;
       }
 
@@ -206,7 +208,7 @@ const Explore = () => {
       }
       return true;
     });
-  }, [restaurants, filters, searchQuery, mapCenter, maxDistance]);
+  }, [restaurants, filters, searchQuery, mapCenter]);
 
   // Sort with sponsored first
   const sortedRestaurants = useMemo(() => {

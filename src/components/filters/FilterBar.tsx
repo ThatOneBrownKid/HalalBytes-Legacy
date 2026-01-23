@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { SlidersHorizontal, X, Clock } from "lucide-react";
+import { SlidersHorizontal, X, Clock, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,13 +15,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
-interface Filters {
+export interface Filters {
   priceRange: string[];
   cuisineTypes: string[];
   halalStatus: string[];
   openNow: boolean;
+  distance: number;
 }
 
 interface FilterBarProps {
@@ -46,6 +48,7 @@ const cuisineOptions = [
   'Latin American'
 ];
 const halalOptions = ['Full Halal', 'Partial Halal'];
+const distanceMarks = [5, 10, 25, 50, 100];
 
 export const FilterBar = ({ filters, onFiltersChange }: FilterBarProps) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -55,9 +58,10 @@ export const FilterBar = ({ filters, onFiltersChange }: FilterBarProps) => {
     filters.priceRange.length + 
     filters.cuisineTypes.length + 
     filters.halalStatus.length + 
-    (filters.openNow ? 1 : 0);
+    (filters.openNow ? 1 : 0) +
+    (filters.distance !== 50 ? 1 : 0);
 
-  const toggleFilter = (category: keyof Omit<Filters, 'openNow'>, value: string) => {
+  const toggleFilter = (category: 'priceRange' | 'cuisineTypes' | 'halalStatus', value: string) => {
     setTempFilters(prev => ({
       ...prev,
       [category]: prev[category].includes(value)
@@ -76,13 +80,14 @@ export const FilterBar = ({ filters, onFiltersChange }: FilterBarProps) => {
       priceRange: [],
       cuisineTypes: [],
       halalStatus: [],
-      openNow: false
+      openNow: false,
+      distance: 50
     };
     setTempFilters(emptyFilters);
     onFiltersChange(emptyFilters);
   };
 
-  const removeFilter = (category: keyof Omit<Filters, 'openNow'>, value: string) => {
+  const removeFilter = (category: 'priceRange' | 'cuisineTypes' | 'halalStatus', value: string) => {
     const newFilters = {
       ...filters,
       [category]: filters[category].filter(v => v !== value)
@@ -148,7 +153,33 @@ export const FilterBar = ({ filters, onFiltersChange }: FilterBarProps) => {
 
               <Separator />
 
-              {/* Price Range */}
+              {/* Distance Filter */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-medium">Distance</h3>
+                  <span className="text-sm text-muted-foreground">
+                    {tempFilters.distance === 100 ? "100+ km" : `${tempFilters.distance} km`}
+                  </span>
+                </div>
+                <div className="px-2">
+                  <Slider
+                    value={[tempFilters.distance]}
+                    onValueChange={(value) => setTempFilters(prev => ({ ...prev, distance: value[0] }))}
+                    min={5}
+                    max={100}
+                    step={5}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                    <span>5 km</span>
+                    <span>25 km</span>
+                    <span>50 km</span>
+                    <span>100+ km</span>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
               <div>
                 <h3 className="font-medium mb-3">Price Range</h3>
                 <div className="flex gap-2 flex-wrap">
@@ -227,6 +258,28 @@ export const FilterBar = ({ filters, onFiltersChange }: FilterBarProps) => {
 
         {/* Quick filter chips for active filters */}
         <AnimatePresence>
+          {filters.distance !== 50 && (
+            <motion.div
+              key="distance"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+            >
+              <Badge
+                variant="secondary"
+                className="gap-1 cursor-pointer pr-1.5"
+                onClick={() => {
+                  const newFilters = { ...filters, distance: 50 };
+                  onFiltersChange(newFilters);
+                  setTempFilters(newFilters);
+                }}
+              >
+                <MapPin className="h-3 w-3" />
+                {filters.distance} km
+                <X className="h-3 w-3" />
+              </Badge>
+            </motion.div>
+          )}
           {filters.openNow && (
             <motion.div
               key="open-now"

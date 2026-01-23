@@ -346,6 +346,7 @@ export const RestaurantMap = ({
   return (
     <div className="relative w-full h-full rounded-xl overflow-hidden" style={{ zIndex: 0, minHeight: '300px' }}>
       <MapContainer
+        key={`${center.lat}-${center.lng}`}
         center={[center.lat, center.lng]}
         zoom={zoom}
         style={{ width: "100%", height: "100%", minHeight: '300px' }}
