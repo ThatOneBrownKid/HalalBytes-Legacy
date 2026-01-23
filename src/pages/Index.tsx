@@ -46,20 +46,12 @@ const Index = () => {
       <Header />
 
       {/* Hero Section */}
-      <section className="relative hero-gradient overflow-hidden">
-        {/* Decorative elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
-            className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-primary/5"
-          />
-          <motion.div
-            animate={{ rotate: -360 }}
-            transition={{ duration: 80, repeat: Infinity, ease: "linear" }}
-            className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full bg-gold/5"
-          />
-        </div>
+      <section className="relative overflow-hidden">
+        {/* Background Pattern - Similar to About but with unique variations */}
+        <div className="absolute inset-0 bg-gradient-to-tl from-primary/8 via-transparent to-gold/8" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/15 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-gold/12 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 right-0 w-64 h-64 bg-halal-full/8 rounded-full blur-3xl" />
 
         <div className="container relative mx-auto px-4 py-20 md:py-32">
           <div className="max-w-3xl mx-auto text-center">
