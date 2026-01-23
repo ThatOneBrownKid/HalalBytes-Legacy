@@ -391,42 +391,46 @@ export const RestaurantMap = ({
               click: () => handleMarkerClick(restaurant),
             }}
           >
-            {/* Only show popup on desktop - improved layout */}
+            {/* Only show popup on desktop - card-like styling */}
             {!isMobile && (
               <Popup className="restaurant-popup" closeButton={true}>
-                <div className="popup-content">
+                <div className="popup-card">
                   {restaurant.images && restaurant.images[0] && (
-                    <div className="popup-image-wrapper">
+                    <div className="popup-card-image">
                       <img 
                         src={restaurant.images[0]} 
                         alt={restaurant.name}
-                        className="popup-image"
                       />
                     </div>
                   )}
-                  <div className="popup-body">
-                    <h3 className="popup-title">{restaurant.name}</h3>
-                    <div className="popup-meta">
+                  <div className="popup-card-content">
+                    <div className="popup-card-header">
+                      <h3 className="popup-card-title">{restaurant.name}</h3>
                       {restaurant.rating !== undefined && restaurant.rating > 0 && (
-                        <div className="popup-rating">
-                          <Star className="h-3 w-3 fill-gold text-gold" />
+                        <div className="popup-card-rating">
+                          <Star className="h-3.5 w-3.5 fill-gold text-gold" />
                           <span>{restaurant.rating.toFixed(1)}</span>
                         </div>
                       )}
+                    </div>
+                    <div className="popup-card-meta">
                       {restaurant.cuisine_type && (
-                        <span className="popup-cuisine">{restaurant.cuisine_type}</span>
+                        <span>{restaurant.cuisine_type}</span>
                       )}
                       {restaurant.price_range && (
-                        <span className="popup-price">{restaurant.price_range}</span>
+                        <>
+                          <span className="popup-card-dot">•</span>
+                          <span className="popup-card-price">{restaurant.price_range}</span>
+                        </>
                       )}
                     </div>
                     <Badge
                       variant="secondary"
                       className={cn(
-                        "text-xs",
+                        "text-xs font-medium",
                         restaurant.halal_status === 'Full Halal' 
-                          ? "bg-halal-full/20 text-halal-full" 
-                          : "bg-halal-partial/20 text-halal-partial"
+                          ? "bg-halal-full text-halal-full-foreground" 
+                          : "bg-halal-partial text-halal-partial-foreground"
                       )}
                     >
                       {restaurant.halal_status}

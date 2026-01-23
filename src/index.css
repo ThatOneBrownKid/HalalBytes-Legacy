@@ -273,95 +273,125 @@
     border: none;
   }
 
-  /* Popup wrapper with dark mode support */
+  /* Popup wrapper - card-like styling with dark mode support */
   .leaflet-popup-content-wrapper {
-    @apply bg-card text-card-foreground shadow-lg border border-border;
-    border-radius: 16px !important;
+    background: hsl(var(--card)) !important;
+    color: hsl(var(--card-foreground)) !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 0.75rem !important;
     padding: 0 !important;
-    overflow: hidden;
+    overflow: hidden !important;
+    box-shadow: 0 10px 15px -3px hsl(var(--foreground) / 0.1), 0 4px 6px -4px hsl(var(--foreground) / 0.1) !important;
   }
 
   .leaflet-popup-content {
-    @apply m-0;
+    margin: 0 !important;
     width: auto !important;
     padding: 0 !important;
   }
 
   .leaflet-popup-tip {
-    @apply bg-card border-l border-b border-border;
+    background: hsl(var(--card)) !important;
+    border-left: 1px solid hsl(var(--border)) !important;
+    border-bottom: 1px solid hsl(var(--border)) !important;
+    box-shadow: none !important;
   }
 
   .leaflet-popup-close-button {
-    @apply text-foreground/70 hover:text-foreground;
-    top: 10px !important;
-    right: 10px !important;
-    width: 24px !important;
-    height: 24px !important;
-    font-size: 20px !important;
-    font-weight: bold !important;
+    color: hsl(var(--foreground)) !important;
+    top: 8px !important;
+    right: 8px !important;
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 18px !important;
+    font-weight: 500 !important;
     z-index: 10 !important;
-    background: hsl(var(--background) / 0.8) !important;
-    border-radius: 50% !important;
+    background: hsl(var(--background) / 0.9) !important;
+    backdrop-filter: blur(4px) !important;
+    border-radius: 9999px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     line-height: 1 !important;
     padding: 0 !important;
+    opacity: 1 !important;
+    transition: background-color 0.2s !important;
   }
 
-  /* Custom popup content styles */
-  .popup-content {
-    width: 260px;
+  .leaflet-popup-close-button:hover {
+    background: hsl(var(--accent)) !important;
+    color: hsl(var(--accent-foreground)) !important;
   }
 
-  .popup-image-wrapper {
-    width: 100%;
-    height: 120px;
+  /* Card-like popup content */
+  .popup-card {
+    width: 280px;
     overflow: hidden;
-    border-radius: 16px 16px 0 0;
   }
 
-  .popup-image {
+  .popup-card-image {
+    width: 100%;
+    height: 140px;
+    overflow: hidden;
+  }
+
+  .popup-card-image img {
     width: 100%;
     height: 100%;
     object-fit: cover;
   }
 
-  .popup-body {
-    padding: 12px;
+  .popup-card-content {
+    padding: 12px 14px 14px;
     display: flex;
     flex-direction: column;
     gap: 8px;
   }
 
-  .popup-title {
-    @apply font-semibold text-sm text-foreground;
+  .popup-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .popup-card-title {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: hsl(var(--foreground));
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    flex: 1;
+    min-width: 0;
   }
 
-  .popup-meta {
+  .popup-card-rating {
     display: flex;
     align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    font-size: 12px;
+    gap: 3px;
+    font-size: 13px;
+    font-weight: 500;
+    color: hsl(var(--foreground));
+    flex-shrink: 0;
   }
 
-  .popup-rating {
+  .popup-card-meta {
     display: flex;
     align-items: center;
-    gap: 2px;
-    @apply font-medium;
+    gap: 6px;
+    font-size: 13px;
+    color: hsl(var(--muted-foreground));
   }
 
-  .popup-cuisine {
-    @apply text-muted-foreground;
+  .popup-card-dot {
+    color: hsl(var(--muted-foreground));
   }
 
-  .popup-price {
-    @apply font-medium;
+  .popup-card-price {
+    font-weight: 500;
+    color: hsl(var(--foreground));
   }
 }
 
