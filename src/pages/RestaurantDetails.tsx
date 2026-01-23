@@ -41,13 +41,13 @@ import { useGoogleDataRefresh } from "@/hooks/useGoogleDataRefresh";
 import { useFavorites } from "@/hooks/useFavorites";
 import { LocationMapLink } from "@/components/restaurant/LocationMapLink";
 import { AddToListButton } from "@/components/favorites/AddToListButton";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 
 const RestaurantDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isFavorited, toggleFavorite } = useFavorites();
+  const { isInFavorites, toggleFavorite } = useFavorites();
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -266,7 +266,6 @@ const RestaurantDetails = () => {
   };
   
   const openingHours = safeParse<Record<string, unknown> | null>(restaurant?.opening_hours, null);
-  const halalAttributes = safeParse<string[]>(restaurant?.halal_attributes, []);
 
 
   // Keyboard navigation for lightbox
@@ -391,7 +390,7 @@ const RestaurantDetails = () => {
         )}
       </div>
 
-      {/* Image Gallery - Vertically scrollable */}
+      {/* Image Gallery - Horizontally scrollable */}
       <div className="container mx-auto px-4 mb-6 sm:mb-8">
         {images.length === 0 ? (
           <div className="h-[200px] sm:h-[300px] bg-muted rounded-2xl flex items-center justify-center">
@@ -413,12 +412,12 @@ const RestaurantDetails = () => {
             />
           </motion.div>
         ) : (
-          <ScrollArea className="h-[300px] sm:h-[400px] rounded-2xl border">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 p-2">
+          <div className="overflow-x-auto pb-2 -mx-4 px-4">
+            <div className="flex gap-3" style={{ width: 'max-content' }}>
               {images.map((image, idx) => (
                 <motion.div
                   key={idx}
-                  className="relative cursor-pointer overflow-hidden rounded-lg aspect-square"
+                  className="relative cursor-pointer overflow-hidden rounded-xl h-[200px] sm:h-[300px] w-[280px] sm:w-[400px] flex-shrink-0"
                   whileHover={{ scale: 1.02 }}
                   onClick={() => setSelectedImageIndex(idx)}
                 >
@@ -430,14 +429,14 @@ const RestaurantDetails = () => {
                 </motion.div>
               ))}
             </div>
-          </ScrollArea>
+          </div>
         )}
       </div>
 
 
       {/* Content */}
       <div className="container mx-auto px-4 pb-16">
-        <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
+        <div className="grid lg:grid-cols-3 gap-6 lg:gap-8 [&>*:first-child]:order-last lg:[&>*:first-child]:order-first">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6 sm:space-y-8">
             {/* Header */}
@@ -464,9 +463,9 @@ const RestaurantDetails = () => {
                     variant="outline"
                     size="icon"
                     onClick={() => id && toggleFavorite(id)}
-                    className={cn("h-10 w-10 sm:h-9 sm:w-9", id && isFavorited(id) && "text-destructive")}
+                    className={cn("h-10 w-10 sm:h-9 sm:w-9", id && isInFavorites(id) && "text-destructive")}
                   >
-                    <Heart className={cn("h-5 w-5 sm:h-4 sm:w-4", id && isFavorited(id) && "fill-current")} />
+                    <Heart className={cn("h-5 w-5 sm:h-4 sm:w-4", id && isInFavorites(id) && "fill-current")} />
                   </Button>
                   {id && <AddToListButton restaurantId={id} variant="button" />}
                   <Button variant="outline" size="icon" className="h-10 w-10 sm:h-9 sm:w-9">
@@ -488,12 +487,6 @@ const RestaurantDetails = () => {
                 >
                   {restaurant.halal_status}
                 </Badge>
-                {halalAttributes.map((attr) => (
-                  <Badge key={attr} variant="outline" className="gap-1 text-xs">
-                    <Check className="h-3 w-3" />
-                    {attr}
-                  </Badge>
-                ))}
               </div>
 
               <p className="text-muted-foreground text-sm sm:text-base">{restaurant.description}</p>
@@ -553,8 +546,8 @@ const RestaurantDetails = () => {
             </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-4 sm:space-y-6">
+          {/* Sidebar - on mobile shows after reviews */}
+          <div className="space-y-4 sm:space-y-6 order-first lg:order-last">
             <div className="lg:sticky lg:top-24 space-y-4 sm:space-y-6">
               {/* Contact Card */}
               <div className="p-4 sm:p-6 rounded-2xl bg-card border">

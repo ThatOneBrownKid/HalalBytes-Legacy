@@ -61,8 +61,10 @@ export const LocationMapLink = ({ lat, lng, address, name }: LocationMapLinkProp
         {!imageError ? (
           <iframe
             src={`https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.005}%2C${lat - 0.003}%2C${lng + 0.005}%2C${lat + 0.003}&layer=mapnik&marker=${lat}%2C${lng}`}
-            className="w-full h-full border-0 pointer-events-none"
+            className="w-full h-full border-0 pointer-events-none [&_*]:hidden"
+            style={{ overflow: 'hidden' }}
             title={`Map location of ${name}`}
+            scrolling="no"
             onError={() => setImageError(true)}
           />
         ) : (

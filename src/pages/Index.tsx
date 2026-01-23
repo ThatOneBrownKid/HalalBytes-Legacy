@@ -4,6 +4,7 @@ import { MapPin, Star, Shield, Clock, ArrowRight } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { SearchBar } from "@/components/search/SearchBar";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 const features = [
   {
@@ -30,6 +31,7 @@ const features = [
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleSearch = (query: string) => {
     navigate(`/explore?q=${encodeURIComponent(query)}`);
@@ -189,10 +191,10 @@ const Index = () => {
             <Button
               size="lg"
               variant="secondary"
-              onClick={() => navigate('/auth/signup')}
+              onClick={() => navigate(user ? '/submit-restaurant' : '/auth/signup')}
               className="gap-2"
             >
-              Get Started
+              {user ? 'Submit a Restaurant' : 'Get Started'}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </motion.div>

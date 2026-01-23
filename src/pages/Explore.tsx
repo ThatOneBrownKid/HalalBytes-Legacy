@@ -71,7 +71,7 @@ const Explore = () => {
   const [searchParams] = useSearchParams();
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const isMobile = useIsMobile();
-  const { isFavorited, toggleFavorite } = useFavorites();
+  const { isInFavorites, toggleFavorite } = useFavorites();
 
   
   const [mobileView, setMobileView] = useState<'list' | 'map'>('list');
@@ -84,7 +84,6 @@ const Explore = () => {
     priceRange: [] as string[],
     cuisineTypes: [] as string[],
     halalStatus: [] as string[],
-    attributes: [] as string[],
     openNow: false,
   });
   const [mapBounds, setMapBounds] = useState<{
@@ -369,7 +368,7 @@ const Explore = () => {
                       isHighlighted={highlightedCardId === restaurant.id || selectedRestaurantId === restaurant.id}
                       onSelect={handleCardSelect}
                       onFavorite={toggleFavorite}
-                      isFavorited={isFavorited(restaurant.id)}
+                      isFavorited={isInFavorites(restaurant.id)}
                     />
                   </div>
 

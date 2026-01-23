@@ -55,13 +55,6 @@ const cuisineTypes = [
   "Other",
 ];
 
-const halalAttributes = [
-  { id: "hand_slaughtered", label: "Hand Slaughtered" },
-  { id: "machine_slaughtered", label: "Machine Slaughtered" },
-  { id: "zabiha", label: "Zabiha Certified" },
-  { id: "no_alcohol", label: "No Alcohol Served" },
-  { id: "halal_certified", label: "Halal Certified" },
-];
 
 const meatTypes = [
   { id: "chicken", label: "Chicken" },
@@ -87,7 +80,6 @@ const SubmitRestaurant = () => {
     cuisine_type: "",
     price_range: "$$" as "$" | "$$" | "$$$" | "$$$$",
     halal_status: "Full Halal" as "Full Halal" | "Partial Halal",
-    halal_attributes: [] as string[],
     partial_halal_meats: [] as string[],
     lat: 0,
     lng: 0,
@@ -98,14 +90,6 @@ const SubmitRestaurant = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleAttributeToggle = (attributeId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      halal_attributes: prev.halal_attributes.includes(attributeId)
-        ? prev.halal_attributes.filter(a => a !== attributeId)
-        : [...prev.halal_attributes, attributeId]
-    }));
-  };
 
   const handleMeatToggle = (meatId: string) => {
     setFormData(prev => ({
@@ -245,7 +229,6 @@ const SubmitRestaurant = () => {
         cuisine_type: formData.cuisine_type,
         price_range: formData.price_range,
         halal_status: formData.halal_status,
-        halal_attributes: formData.halal_attributes,
         partial_halal_meats: formData.halal_status === "Partial Halal" ? formData.partial_halal_meats : [],
         image_urls: imageUrls,
         lat,
@@ -506,26 +489,6 @@ const SubmitRestaurant = () => {
                     </div>
                   )}
 
-                  <div className="space-y-2">
-                    <Label>Halal Attributes</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {halalAttributes.map(attr => (
-                        <div
-                          key={attr.id}
-                          className="flex items-center space-x-2"
-                        >
-                          <Checkbox
-                            id={attr.id}
-                            checked={formData.halal_attributes.includes(attr.id)}
-                            onCheckedChange={() => handleAttributeToggle(attr.id)}
-                          />
-                          <Label htmlFor={attr.id} className="cursor-pointer text-sm">
-                            {attr.label}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </div>
 
                 {/* Image Upload */}
