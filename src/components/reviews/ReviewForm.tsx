@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Star, X, Loader2, ImagePlus } from "lucide-react";
@@ -9,46 +9,98 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+interface ExistingReview {
+  id: string;
+  rating: number;
+  comment: string;
+  images: { id: string; url: string }[];
+}
+
 interface ReviewFormProps {
   restaurantId: string;
+  existingReview?: ExistingReview;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
-export const ReviewForm = ({ restaurantId, onSuccess, onCancel }: ReviewFormProps) => {
+export const ReviewForm = ({ restaurantId, existingReview, onSuccess, onCancel }: ReviewFormProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [rating, setRating] = useState(0);
+  const [rating, setRating] = useState(existingReview?.rating || 0);
   const [hoverRating, setHoverRating] = useState(0);
-  const [content, setContent] = useState("");
-  const [images, setImages] = useState<{ file: File; preview: string }[]>([]);
+  const [content, setContent] = useState(existingReview?.comment || "");
+  const [images, setImages] = useState<{ file?: File; preview: string; id?: string; isExisting?: boolean }[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+
+  const isEditing = !!existingReview;
+
+  // Initialize with existing images
+  useEffect(() => {
+    if (existingReview?.images) {
+      setImages(existingReview.images.map(img => ({
+        preview: img.url,
+        id: img.id,
+        isExisting: true,
+      })));
+    }
+  }, [existingReview]);
 
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("You must be logged in to submit a review");
       if (rating === 0) throw new Error("Please select a rating");
 
-      // Create review
-      const { data: review, error: reviewError } = await supabase
-        .from('reviews')
-        .insert({
-          restaurant_id: restaurantId,
-          user_id: user.id,
-          rating,
-          comment: content || null,
-        })
-        .select()
-        .single();
+      let reviewId = existingReview?.id;
 
-      if (reviewError) throw reviewError;
+      if (isEditing && reviewId) {
+        // Update existing review
+        const { error: updateError } = await supabase
+          .from('reviews')
+          .update({
+            rating,
+            comment: content || null,
+          })
+          .eq('id', reviewId);
 
-      // Upload images if any
-      if (images.length > 0) {
+        if (updateError) throw updateError;
+
+        // Handle removed existing images
+        const existingImageIds = existingReview.images.map(img => img.id);
+        const keptImageIds = images.filter(img => img.isExisting && img.id).map(img => img.id);
+        const removedImageIds = existingImageIds.filter(id => !keptImageIds.includes(id));
+
+        if (removedImageIds.length > 0) {
+          await supabase
+            .from('review_images')
+            .delete()
+            .in('id', removedImageIds);
+        }
+      } else {
+        // Create new review
+        const { data: review, error: reviewError } = await supabase
+          .from('reviews')
+          .insert({
+            restaurant_id: restaurantId,
+            user_id: user.id,
+            rating,
+            comment: content || null,
+          })
+          .select()
+          .single();
+
+        if (reviewError) throw reviewError;
+        reviewId = review.id;
+      }
+
+      // Upload new images
+      const newImages = images.filter(img => !img.isExisting && img.file);
+      if (newImages.length > 0) {
         setIsUploading(true);
         
-        for (const image of images) {
-          const fileName = `review-${review.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
+        for (const image of newImages) {
+          if (!image.file) continue;
+          
+          const fileName = `review-${reviewId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
           
           const { error: uploadError } = await supabase.storage
             .from('restaurant-images')
@@ -67,7 +119,7 @@ export const ReviewForm = ({ restaurantId, onSuccess, onCancel }: ReviewFormProp
 
           // Save to review_images table
           await supabase.from('review_images').insert({
-            review_id: review.id,
+            review_id: reviewId,
             url: urlData.publicUrl,
             uploaded_by: user.id,
           });
@@ -84,10 +136,10 @@ export const ReviewForm = ({ restaurantId, onSuccess, onCancel }: ReviewFormProp
         setIsUploading(false);
       }
 
-      return review;
+      return { id: reviewId };
     },
     onSuccess: () => {
-      toast.success("Review submitted successfully!");
+      toast.success(isEditing ? "Review updated successfully!" : "Review submitted successfully!");
       queryClient.invalidateQueries({ queryKey: ['restaurant-reviews', restaurantId] });
       queryClient.invalidateQueries({ queryKey: ['restaurant-images', restaurantId] });
       onSuccess?.();
@@ -104,6 +156,7 @@ export const ReviewForm = ({ restaurantId, onSuccess, onCancel }: ReviewFormProp
     const newImages = Array.from(files).slice(0, 5 - images.length).map(file => ({
       file,
       preview: URL.createObjectURL(file),
+      isExisting: false,
     }));
 
     setImages(prev => [...prev, ...newImages]);
@@ -111,7 +164,10 @@ export const ReviewForm = ({ restaurantId, onSuccess, onCancel }: ReviewFormProp
 
   const removeImage = (index: number) => {
     setImages(prev => {
-      URL.revokeObjectURL(prev[index].preview);
+      const image = prev[index];
+      if (!image.isExisting && image.preview) {
+        URL.revokeObjectURL(image.preview);
+      }
       return prev.filter((_, i) => i !== index);
     });
   };
@@ -234,7 +290,7 @@ export const ReviewForm = ({ restaurantId, onSuccess, onCancel }: ReviewFormProp
           {(submitMutation.isPending || isUploading) && (
             <Loader2 className="h-4 w-4 animate-spin" />
           )}
-          Submit Review
+          {isEditing ? "Update Review" : "Submit Review"}
         </Button>
       </div>
     </motion.div>

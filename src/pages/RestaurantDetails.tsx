@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ReviewForm } from "@/components/reviews/ReviewForm";
+import { ReviewCard } from "@/components/reviews/ReviewCard";
 import { useGoogleDataRefresh } from "@/hooks/useGoogleDataRefresh";
 import { useFavorites } from "@/hooks/useFavorites";
 
@@ -99,7 +100,7 @@ const RestaurantDetails = () => {
     enabled: !!id,
   });
 
-  // Fetch reviews with profile data
+  // Fetch reviews with profile data and images
   const { data: reviews = [] } = useQuery({
     queryKey: ['restaurant-reviews', id],
     queryFn: async () => {
@@ -124,12 +125,35 @@ const RestaurantDetails = () => {
         return acc;
       }, {} as Record<string, { username: string | null; avatar_url: string | null }>);
 
+      // Fetch review images
+      const reviewIds = reviewsData.map(r => r.id);
+      const { data: reviewImagesData } = await supabase
+        .from('review_images')
+        .select('id, review_id, url')
+        .in('review_id', reviewIds);
+
+      const imagesMap = (reviewImagesData || []).reduce((acc, img) => {
+        if (!acc[img.review_id]) acc[img.review_id] = [];
+        acc[img.review_id].push({ id: img.id, url: img.url });
+        return acc;
+      }, {} as Record<string, { id: string; url: string }[]>);
+
       return reviewsData.map(review => ({
         ...review,
         profile: profilesMap[review.user_id] || null,
+        images: imagesMap[review.id] || [],
       }));
     },
     enabled: !!id,
+  });
+
+  // Sort reviews: user's own review first, then by date
+  const sortedReviews = [...reviews].sort((a, b) => {
+    if (user) {
+      if (a.user_id === user.id) return -1;
+      if (b.user_id === user.id) return 1;
+    }
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
   // Google data refresh hook
@@ -510,14 +534,19 @@ const RestaurantDetails = () => {
 
             {/* Reviews Section */}
             <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-display text-xl sm:text-2xl font-bold">Reviews</h2>
-                {user && !showReviewForm && (
-                  <Button size="sm" onClick={() => setShowReviewForm(true)}>
-                    Write a Review
-                  </Button>
-                )}
-              </div>
+              {(() => {
+                const userHasReview = user && sortedReviews.some(r => r.user_id === user.id);
+                return (
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="font-display text-xl sm:text-2xl font-bold">Reviews</h2>
+                    {user && !showReviewForm && !userHasReview && (
+                      <Button size="sm" onClick={() => setShowReviewForm(true)}>
+                        Write a Review
+                      </Button>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Review Form */}
               {showReviewForm && (
@@ -530,7 +559,7 @@ const RestaurantDetails = () => {
                 </div>
               )}
 
-              {reviews.length === 0 && !showReviewForm ? (
+              {sortedReviews.length === 0 && !showReviewForm ? (
                 <div className="text-center py-8 sm:py-12 bg-muted/30 rounded-xl">
                   <p className="text-muted-foreground mb-3">No reviews yet. Be the first to review!</p>
                   {user && (
@@ -539,51 +568,16 @@ const RestaurantDetails = () => {
                     </Button>
                   )}
                 </div>
-              ) : reviews.length > 0 ? (
+              ) : sortedReviews.length > 0 ? (
                 <div className="space-y-4 sm:space-y-6">
-                  {reviews.map((review) => (
-                    <motion.div
+                  {sortedReviews.map((review) => (
+                    <ReviewCard
                       key={review.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-3 sm:p-4 rounded-xl bg-card border"
-                    >
-                      <div className="flex items-start gap-3 mb-3">
-                        <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
-                          <AvatarImage src={review.profile?.avatar_url || undefined} />
-                          <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm">
-                            {review.profile?.username?.charAt(0) || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="font-medium text-sm sm:text-base truncate">{review.profile?.username || 'Anonymous'}</p>
-                            <span className="text-xs sm:text-sm text-muted-foreground flex-shrink-0">
-                              {new Date(review.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-0.5">
-                            {Array.from({ length: 5 }).map((_, idx) => (
-                              <Star
-                                key={idx}
-                                className={cn(
-                                  "h-3 w-3 sm:h-4 sm:w-4",
-                                  idx < review.rating
-                                    ? "fill-gold text-gold"
-                                    : "fill-muted text-muted"
-                                )}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      {review.comment && (
-                        <div 
-                          className="text-muted-foreground text-sm prose prose-sm max-w-none [&_p]:m-0 [&_ul]:mt-1 [&_ol]:mt-1"
-                          dangerouslySetInnerHTML={{ __html: review.comment }}
-                        />
-                      )}
-                    </motion.div>
+                      review={review}
+                      currentUserId={user?.id || null}
+                      isAdmin={isAdmin}
+                      isOwnReview={user?.id === review.user_id}
+                    />
                   ))}
                 </div>
               ) : null}
