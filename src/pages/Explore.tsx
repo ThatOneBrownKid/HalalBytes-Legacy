@@ -258,18 +258,18 @@ const Explore = () => {
   }, [sortedRestaurants]);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
       <Header />
 
       {/* Search & Filters Bar - Mobile optimized */}
-      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-16 z-40">
-        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-16 z-40 w-full">
+        <div className="max-w-full px-3 sm:container sm:mx-auto sm:px-4 py-3 sm:py-4">
           <div className="flex flex-col gap-3">
             {/* Search row */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 w-full">
+              <div className="flex-1 min-w-0 overflow-hidden">
                 <SearchBar
-                  placeholder="Search restaurants..."
+                  placeholder="Search..."
                   onSearch={(q) => setSearchQuery(q)}
                   showLocationButton={false}
                   className="w-full"
@@ -281,7 +281,7 @@ const Explore = () => {
               />
             </div>
             {/* Filters row - scrollable on mobile */}
-            <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
+            <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-thin">
               <FilterBar filters={filters} onFiltersChange={setFilters} />
             </div>
           </div>
@@ -362,23 +362,26 @@ const Explore = () => {
           </div>
         </div>
 
-        {/* Map View - Full height on mobile */}
+        {/* Map View - Full height on mobile with explicit dimensions */}
         <div 
           className={cn(
-            "flex-1 h-[calc(100vh-11rem)] sm:h-[calc(100vh-10rem)]",
-            mobileView === 'list' && "hidden lg:block"
+            "flex-1 min-h-[400px] h-[calc(100vh-11rem)] sm:h-[calc(100vh-10rem)]",
+            mobileView === 'list' ? "hidden lg:block" : "block"
           )}
+          style={{ width: '100%' }}
         >
-          <Suspense fallback={<div className="flex items-center justify-center h-full"><Skeleton className="w-full h-full" /></div>}>
-            <RestaurantMap
-              restaurants={mapRestaurants}
-              selectedId={selectedRestaurantId}
-              onMarkerClick={handleMarkerClick}
-              onBoundsChange={handleBoundsChange}
-              center={mapCenter}
-              onNavigateToRestaurant={handleCardSelect}
-            />
-          </Suspense>
+          {(mobileView === 'map' || window.innerWidth >= 1024) && (
+            <Suspense fallback={<div className="flex items-center justify-center h-full bg-muted"><Skeleton className="w-full h-full" /></div>}>
+              <RestaurantMap
+                restaurants={mapRestaurants}
+                selectedId={selectedRestaurantId}
+                onMarkerClick={handleMarkerClick}
+                onBoundsChange={handleBoundsChange}
+                center={mapCenter}
+                onNavigateToRestaurant={handleCardSelect}
+              />
+            </Suspense>
+          )}
         </div>
       </div>
     </div>

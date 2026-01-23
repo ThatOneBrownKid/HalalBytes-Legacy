@@ -92,14 +92,14 @@ export const SearchBar = ({
     <form onSubmit={handleSubmit} className={cn("relative w-full", className)}>
       <div 
         className={cn(
-          "search-bar relative flex items-center gap-2 bg-card rounded-2xl border",
+          "search-bar relative flex items-center gap-1 sm:gap-2 bg-card rounded-xl sm:rounded-2xl border overflow-hidden",
           isFocused && "ring-2 ring-primary/20",
-          size === 'large' ? "px-5 py-4" : "px-4 py-2.5"
+          size === 'large' ? "px-3 sm:px-5 py-3 sm:py-4" : "px-2 sm:px-4 py-2 sm:py-2.5"
         )}
       >
         <Search className={cn(
           "text-muted-foreground shrink-0",
-          size === 'large' ? "h-5 w-5" : "h-4 w-4"
+          size === 'large' ? "h-4 w-4 sm:h-5 sm:w-5" : "h-4 w-4"
         )} />
         
         <Input
@@ -111,8 +111,8 @@ export const SearchBar = ({
           onBlur={() => setTimeout(() => setIsFocused(false), 200)}
           placeholder={placeholder}
           className={cn(
-            "border-0 bg-transparent shadow-none focus-visible:ring-0 p-0 placeholder:text-muted-foreground/70",
-            size === 'large' ? "text-lg" : "text-base"
+            "border-0 bg-transparent shadow-none focus-visible:ring-0 p-0 placeholder:text-muted-foreground/70 min-w-0",
+            size === 'large' ? "text-base sm:text-lg" : "text-sm sm:text-base"
           )}
         />
 
@@ -141,7 +141,7 @@ export const SearchBar = ({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
+            className="h-7 w-7 sm:h-8 sm:w-8 shrink-0 text-muted-foreground hover:text-primary"
             onClick={handleGetLocation}
           >
             <MapPin className="h-4 w-4" />
@@ -150,12 +150,14 @@ export const SearchBar = ({
 
         <Button 
           type="submit"
+          size="sm"
           className={cn(
-            "shrink-0",
-            size === 'large' ? "px-6" : "px-4"
+            "shrink-0 text-xs sm:text-sm",
+            size === 'large' ? "px-3 sm:px-6" : "px-2 sm:px-4"
           )}
         >
-          Search
+          <Search className="h-4 w-4 sm:hidden" />
+          <span className="hidden sm:inline">Search</span>
         </Button>
       </div>
 

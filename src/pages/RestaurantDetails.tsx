@@ -16,7 +16,8 @@ import {
   Edit,
   ChevronLeft,
   ChevronRight,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Loader2
 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { ReviewForm } from "@/components/reviews/ReviewForm";
+import { useGoogleDataRefresh } from "@/hooks/useGoogleDataRefresh";
 
 const RestaurantDetails = () => {
   const { id } = useParams();
@@ -41,6 +44,7 @@ const RestaurantDetails = () => {
   const [isFavorited, setIsFavorited] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
 
   // Check if user is admin
   useEffect(() => {
@@ -124,6 +128,13 @@ const RestaurantDetails = () => {
     },
     enabled: !!id,
   });
+
+  // Google data refresh hook
+  const { isRefreshing } = useGoogleDataRefresh(restaurant ? {
+    id: restaurant.id,
+    google_place_id: restaurant.google_place_id,
+    google_data_fetched_at: restaurant.google_data_fetched_at,
+  } : null);
 
   // Calculate average rating
   const avgRating = reviews.length > 0 
@@ -256,8 +267,16 @@ const RestaurantDetails = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <Header />
+
+      {/* Loading indicator for Google refresh */}
+      {isRefreshing && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-card border rounded-full px-4 py-2 shadow-lg flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="text-sm">Refreshing data...</span>
+        </div>
+      )}
 
       {/* Back Button & Admin Edit */}
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -429,14 +448,34 @@ const RestaurantDetails = () => {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="font-display text-xl sm:text-2xl font-bold">Reviews</h2>
-                <Button size="sm" className="sm:size-default">Write a Review</Button>
+                {user && !showReviewForm && (
+                  <Button size="sm" onClick={() => setShowReviewForm(true)}>
+                    Write a Review
+                  </Button>
+                )}
               </div>
 
-              {reviews.length === 0 ? (
-                <div className="text-center py-8 sm:py-12 bg-muted/30 rounded-xl">
-                  <p className="text-muted-foreground">No reviews yet. Be the first to review!</p>
+              {/* Review Form */}
+              {showReviewForm && (
+                <div className="mb-6">
+                  <ReviewForm 
+                    restaurantId={id!}
+                    onSuccess={() => setShowReviewForm(false)}
+                    onCancel={() => setShowReviewForm(false)}
+                  />
                 </div>
-              ) : (
+              )}
+
+              {reviews.length === 0 && !showReviewForm ? (
+                <div className="text-center py-8 sm:py-12 bg-muted/30 rounded-xl">
+                  <p className="text-muted-foreground mb-3">No reviews yet. Be the first to review!</p>
+                  {user && (
+                    <Button variant="outline" onClick={() => setShowReviewForm(true)}>
+                      Write a Review
+                    </Button>
+                  )}
+                </div>
+              ) : reviews.length > 0 ? (
                 <div className="space-y-4 sm:space-y-6">
                   {reviews.map((review) => (
                     <motion.div
@@ -475,12 +514,15 @@ const RestaurantDetails = () => {
                         </div>
                       </div>
                       {review.comment && (
-                        <p className="text-muted-foreground text-sm">{review.comment}</p>
+                        <div 
+                          className="text-muted-foreground text-sm prose prose-sm max-w-none [&_p]:m-0 [&_ul]:mt-1 [&_ol]:mt-1"
+                          dangerouslySetInnerHTML={{ __html: review.comment }}
+                        />
                       )}
                     </motion.div>
                   ))}
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
 

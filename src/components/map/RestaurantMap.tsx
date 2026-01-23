@@ -246,12 +246,13 @@ export const RestaurantMap = ({
   }, []);
 
   return (
-    <div className="relative w-full h-full rounded-xl overflow-hidden" style={{ zIndex: 0 }}>
+    <div className="relative w-full h-full rounded-xl overflow-hidden" style={{ zIndex: 0, minHeight: '300px' }}>
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={zoom}
-        style={{ width: "100%", height: "100%" }}
+        style={{ width: "100%", height: "100%", minHeight: '300px' }}
         zoomControl={false}
+        className="z-0"
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
