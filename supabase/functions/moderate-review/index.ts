@@ -20,7 +20,7 @@ const REVIEW_SYSTEM_PROMPT = `You are an AI content moderator for a Halal restau
 
 Your Rules:
 
-Text Analysis: Scan the review text for profanity, hate speech, or highly offensive language.
+Text Analysis: Scan the review text for profanity, swear words, curse words, hate speech, slurs, or highly offensive language. Common profanities like f***, s***, damn, hell, a**, b****, etc. must be flagged. Be strict about this.
 
 Image Analysis: Scan the image specifically for alcoholic beverages (beer bottles, wine glasses filled with colored liquid, liquor bottles, bar taps).
 
@@ -28,7 +28,8 @@ Contextual Nuance (Crucial): You must use the text to interpret the image. If th
 
 Output Format: You must return a strict JSON object in this format: { "safe": boolean, "reason": "string (short explanation for the user if unsafe)" }
 
-If the content is safe, return: { "safe": true, "reason": "" }`;
+If the content is safe, return: { "safe": true, "reason": "" }
+If profanity is detected, return something like: { "safe": false, "reason": "Your review contains inappropriate language. Please remove profanity and resubmit." }`;
 
 const IMAGE_ONLY_SYSTEM_PROMPT = `You are an AI content moderator for a Halal restaurant review website. Your job is to analyze user-submitted images to ensure they are appropriate.
 
@@ -68,9 +69,9 @@ serve(async (req) => {
   }
 
   try {
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      console.error('OPENAI_API_KEY is not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      console.error('LOVABLE_API_KEY is not configured');
       return new Response(
         JSON.stringify({ safe: false, reason: 'Content moderation service is not configured. Please contact support.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -120,7 +121,7 @@ serve(async (req) => {
     if (moderationType === 'review' && reviewText) {
       userContent.push({
         type: 'text',
-        text: `Please analyze this restaurant review for appropriateness:\n\n"${reviewText}"`
+        text: `Please analyze this restaurant review for appropriateness. Be strict about profanity - flag any swear words, curse words, or offensive language:\n\n"${reviewText}"`
       });
     } else if (moderationType === 'image_only') {
       userContent.push({
@@ -139,35 +140,49 @@ serve(async (req) => {
       userContent.push({
         type: 'image_url',
         image_url: {
-          url: imageBase64,
-          detail: 'low' // Use low detail for faster processing
+          url: imageBase64
         }
       });
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    console.log('Calling Lovable AI for moderation...');
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent }
         ],
-        max_tokens: 150,
-        temperature: 0.1, // Low temperature for consistent moderation
-        response_format: { type: 'json_object' }
+        max_tokens: 200,
+        temperature: 0.1
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
+      console.error('Lovable AI error:', response.status, errorText);
       
-      // Don't block submission if moderation fails - log and allow through
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ safe: false, reason: 'Content moderation is temporarily unavailable. Please try again in a moment.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ safe: false, reason: 'Content moderation service needs attention. Please contact support.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Don't block submission if moderation fails unexpectedly
       return new Response(
         JSON.stringify({ safe: true, reason: '' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -178,16 +193,30 @@ serve(async (req) => {
     const content = data.choices?.[0]?.message?.content;
 
     if (!content) {
-      console.error('No content in OpenAI response:', data);
+      console.error('No content in AI response:', data);
       return new Response(
         JSON.stringify({ safe: true, reason: '' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Moderation result:', content);
+    console.log('Moderation raw result:', content);
 
-    const result: ModerationResponse = JSON.parse(content);
+    // Parse the JSON from the response - handle potential markdown wrapping
+    let jsonContent = content.trim();
+    if (jsonContent.startsWith('```json')) {
+      jsonContent = jsonContent.slice(7);
+    }
+    if (jsonContent.startsWith('```')) {
+      jsonContent = jsonContent.slice(3);
+    }
+    if (jsonContent.endsWith('```')) {
+      jsonContent = jsonContent.slice(0, -3);
+    }
+    jsonContent = jsonContent.trim();
+
+    const result: ModerationResponse = JSON.parse(jsonContent);
+    console.log('Moderation parsed result:', result);
 
     return new Response(
       JSON.stringify(result),
@@ -197,9 +226,9 @@ serve(async (req) => {
   } catch (error) {
     console.error('Moderation error:', error);
     
-    // On error, allow submission to proceed (fail open)
+    // On error, block submission to be safe
     return new Response(
-      JSON.stringify({ safe: true, reason: '' }),
+      JSON.stringify({ safe: false, reason: 'Unable to verify content. Please try again.' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
