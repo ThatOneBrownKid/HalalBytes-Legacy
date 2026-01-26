@@ -127,6 +127,7 @@ export const AdminRestaurantForm = ({ editRestaurantId, onSuccess }: AdminRestau
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [formData, setFormData] = useState<RestaurantFormData>(getDefaultFormData());
+  const [searchQuery, setSearchQuery] = useState("");
 
   const isEditing = !!editRestaurantId;
 
@@ -330,6 +331,11 @@ export const AdminRestaurantForm = ({ editRestaurantId, onSuccess }: AdminRestau
     photos?: string[];
     placeId?: string;
   }) => {
+    // Reset form data and images
+    setFormData(getDefaultFormData());
+    setImages([]);
+    setSearchQuery("");
+
     const priceMap: Record<number, "$" | "$$" | "$$$" | "$$$$"> = {
       1: "$",
       2: "$$",
@@ -427,6 +433,8 @@ export const AdminRestaurantForm = ({ editRestaurantId, onSuccess }: AdminRestau
             <div className="space-y-2">
               <Label>Search for Restaurant</Label>
               <GooglePlacesAutocomplete
+                query={searchQuery}
+                onQueryChange={setSearchQuery}
                 onPlaceSelect={handlePlaceSelect}
                 placeholder="Search by restaurant name or address..."
               />

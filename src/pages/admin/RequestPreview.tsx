@@ -39,6 +39,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { geocodeAddress } from "@/utils/geocoding";
 
+// This interface represents the structure of the `submission_data` column in the `restaurant_requests` table.
 interface SubmissionData {
   name?: string;
   description?: string;

@@ -70,6 +70,7 @@ const SubmitRestaurant = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [entryMode, setEntryMode] = useState<"search" | "manual">("search");
   const [images, setImages] = useState<UploadedImage[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   
   const [formData, setFormData] = useState({
     name: "",
@@ -113,6 +114,24 @@ const SubmitRestaurant = () => {
     cuisineType?: string;
     photos?: string[];
   }) => {
+    // Reset form data and images
+    setFormData({
+      name: "",
+      description: "",
+      address: "",
+      phone: "",
+      website_url: "",
+      cuisine_type: "",
+      price_range: "$$" as "$" | "$$" | "$$$" | "$$$$",
+      halal_status: "Full Halal" as "Full Halal" | "Partial Halal",
+      partial_halal_meats: [] as string[],
+      lat: 0,
+      lng: 0,
+      opening_hours: getDefaultOpeningHours(),
+    });
+    setImages([]);
+    setSearchQuery("");
+
     const priceMap: Record<number, "$" | "$$" | "$$$" | "$$$$"> = {
       1: "$",
       2: "$$",
@@ -250,6 +269,7 @@ const SubmitRestaurant = () => {
         description: "You can track its status in My Requests"
       });
       
+      setSearchQuery("");
       navigate('/my-requests');
     } catch (error: any) {
       console.error('Submit error:', error);
@@ -307,6 +327,8 @@ const SubmitRestaurant = () => {
                     <div className="space-y-2">
                       <Label>Search for Restaurant</Label>
                       <GooglePlacesAutocomplete
+                        query={searchQuery}
+                        onQueryChange={setSearchQuery}
                         onPlaceSelect={handlePlaceSelect}
                         placeholder="Search by restaurant name or address..."
                       />

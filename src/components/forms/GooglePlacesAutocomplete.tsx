@@ -43,6 +43,8 @@ interface GooglePlacesAutocompleteProps {
   onPhotosFound?: (photoUrls: string[]) => void;
   placeholder?: string;
   className?: string;
+  query: string;
+  onQueryChange: (query: string) => void;
 }
 
 // Generate a unique session token for cost optimization
@@ -157,8 +159,9 @@ export const GooglePlacesAutocomplete = ({
   onPlaceSelect,
   placeholder = "Search for a restaurant...",
   className,
+  query,
+  onQueryChange,
 }: GooglePlacesAutocompleteProps) => {
-  const [query, setQuery] = useState("");
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -231,7 +234,7 @@ export const GooglePlacesAutocomplete = ({
   }, []);
 
   const handleInputChange = (value: string) => {
-    setQuery(value);
+    onQueryChange(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchPredictions(value);
@@ -274,7 +277,7 @@ export const GooglePlacesAutocomplete = ({
   };
 
   const handleSelectPlace = async (prediction: PlacePrediction) => {
-    setQuery(prediction.structuredFormat.mainText.text);
+    onQueryChange(prediction.structuredFormat.mainText.text);
     setPredictions([]);
     setIsFocused(false);
     setIsLoading(true);
