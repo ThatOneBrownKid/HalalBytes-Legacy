@@ -56,12 +56,26 @@ export const ReviewCard = ({ review, currentUserId, isAdmin, isOwnReview }: Revi
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      // Delete review images first
+      // Delete review images from storage and tables
       if (review.images.length > 0) {
+        const imageFileNames = review.images.map(img => img.url.split('/').pop());
+        
+        // From storage
+        await supabase.storage
+          .from('restaurant-images')
+          .remove(imageFileNames as string[]);
+
+        // From review_images table
         await supabase
           .from('review_images')
           .delete()
           .eq('review_id', review.id);
+
+        // From restaurant_images table
+        await supabase
+          .from('restaurant_images')
+          .delete()
+          .in('url', review.images.map(i => i.url));
       }
       
       // Delete the review
