@@ -87,9 +87,11 @@ const SubmitRestaurant = () => {
     opening_hours: getDefaultOpeningHours(),
   });
 
-  const handleInputChange = (field: string, value: string | number) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+    const handleInputChange = (field: string, value: any) => {
+
+      setFormData(prev => ({ ...prev, [field]: value }));
+
+    };
 
 
   const handleMeatToggle = (meatId: string) => {

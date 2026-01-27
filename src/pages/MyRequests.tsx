@@ -1,21 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
 import { Header } from "@/components/layout/Header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { FileText, Clock, CheckCircle, XCircle, Plus } from "lucide-react";
-import { format } from "date-fns";
+import { EmptyState } from "@/components/layout/EmptyState";
+
 
 interface RestaurantRequest {
   id: string;
   status: "pending" | "approved" | "rejected";
   submission_data: {
-    name?: string;
-    address?: string;
+    name?: string | { text: string; languageCode?: string };
+    address?: string | { text: string; languageCode?: string };
     cuisine_type?: string;
   };
   admin_notes: string | null;
@@ -30,15 +32,19 @@ const MyRequests = () => {
   const { data: requests, isLoading } = useQuery({
     queryKey: ["my-requests", user?.id],
     queryFn: async () => {
-      if (!user) return [];
-      
+      if (!user) {
+        return [];
+      }
       const { data, error } = await supabase
         .from("restaurant_requests")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching requests:", error);
+        throw error;
+      }
       return data as RestaurantRequest[];
     },
     enabled: !!user,
@@ -125,10 +131,14 @@ const MyRequests = () => {
                   <div className="flex items-start justify-between">
                     <div>
                       <CardTitle className="text-lg">
-                        {request.submission_data?.name || "Unnamed Restaurant"}
+                        {typeof request.submission_data?.name === 'string'
+                          ? request.submission_data.name
+                          : request.submission_data?.name?.text || "Unnamed Restaurant"}
                       </CardTitle>
                       <CardDescription>
-                        {request.submission_data?.address || "No address provided"}
+                        {typeof request.submission_data?.address === 'string'
+                          ? request.submission_data.address
+                          : request.submission_data?.address?.text || "No address provided"}
                       </CardDescription>
                     </div>
                     <Badge variant="outline" className={getStatusColor(request.status)}>
@@ -168,21 +178,13 @@ const MyRequests = () => {
             ))}
           </div>
         ) : (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="font-medium text-lg mb-2">No requests yet</h3>
-              <p className="text-muted-foreground text-center mb-6">
-                You haven't submitted any restaurant requests yet.
-                <br />
-                Know a great halal restaurant? Submit it for review!
-              </p>
-              <Button onClick={() => navigate("/submit-restaurant")} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Submit a Restaurant
-              </Button>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={<FileText className="h-12 w-12" />}
+            title="No requests yet"
+            description="You haven't submitted any restaurant requests yet. Know a great halal restaurant? Submit it for review!"
+            actionText="Submit a Restaurant"
+            onAction={() => navigate("/submit-restaurant")}
+          />
         )}
       </main>
     </div>
