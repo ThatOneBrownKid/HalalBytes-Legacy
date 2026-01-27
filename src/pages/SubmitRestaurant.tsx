@@ -18,6 +18,7 @@ import { ImageUploadZone } from "@/components/forms/ImageUploadZone";
 import { GooglePlacesAutocomplete } from "@/components/forms/GooglePlacesAutocomplete";
 import { OpeningHoursEditor, getDefaultOpeningHours, parseGoogleHours, type OpeningHoursData } from "@/components/forms/OpeningHoursEditor";
 import { geocodeAddress } from "@/utils/geocoding";
+import { cuisineTypes } from "@/lib/cuisineTypes";
 
 interface UploadedImage {
   id: string;
@@ -25,36 +26,6 @@ interface UploadedImage {
   file?: File;
   isUploading?: boolean;
 }
-
-const cuisineTypes = [
-  "American",
-  "Middle Eastern",
-  "South Asian",
-  "Southeast Asian",
-  "Turkish",
-  "Persian",
-  "Mediterranean",
-  "Chinese",
-  "Japanese",
-  "Korean",
-  "Thai",
-  "Vietnamese",
-  "Mexican",
-  "Italian",
-  "African",
-  "Caribbean",
-  "Seafood",
-  "Fast Food",
-  "Cafe",
-  "Bakery",
-  "Bar & Grill",
-  "Brunch",
-  "Breakfast",
-  "Deli",
-  "Dessert",
-  "Other",
-];
-
 
 const meatTypes = [
   { id: "chicken", label: "Chicken" },
@@ -152,7 +123,7 @@ const SubmitRestaurant = () => {
       price_range: place.priceLevel ? priceMap[place.priceLevel] || "$$" : prev.price_range,
       opening_hours: place.openingHours ? parseGoogleHours(place.openingHours) : prev.opening_hours,
       description: place.description || prev.description,
-      cuisine_type: place.cuisineType && cuisineTypes.includes(place.cuisineType) ? place.cuisineType : prev.cuisine_type,
+      cuisine_type: place.cuisineType && cuisineTypes.includes(place.cuisineType) ? place.cuisineType : "Other",
     }));
 
     // Download photos from Google and add to images

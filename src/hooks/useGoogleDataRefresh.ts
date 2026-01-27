@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getCustomCategory } from "@/utils/categoryTagger";
+import { cuisineTypeMap } from "@/lib/cuisineTypeMap";
 
 const MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 const REFRESH_THRESHOLD_DAYS = 30;
@@ -18,7 +20,7 @@ export const useGoogleDataRefresh = (restaurant: RestaurantData | null) => {
     mutationFn: async (placeId: string) => {
       if (!MAPS_API_KEY) throw new Error("Google API key not configured");
 
-      const fields = "regularOpeningHours,generativeSummary,editorialSummary,photos";
+      const fields = "regularOpeningHours,generativeSummary,editorialSummary,photos,primaryType,primaryTypeDisplayName,displayName,types";
       
       const response = await fetch(`https://places.googleapis.com/v1/places/${placeId}`, {
         method: 'GET',
@@ -74,6 +76,28 @@ export const useGoogleDataRefresh = (restaurant: RestaurantData | null) => {
         description = data.editorialSummary.text;
       }
 
+      // Get cuisine type using the custom tagger first
+      let cuisineType = getCustomCategory(data);
+
+      // Fallback to existing logic if no custom category is found
+      if (!cuisineType) {
+        if (data.primaryType && cuisineTypeMap[data.primaryType]) {
+          cuisineType = cuisineTypeMap[data.primaryType];
+        } else if (data.types) {
+          for (const type of data.types) {
+            if (cuisineTypeMap[type]) {
+              cuisineType = cuisineTypeMap[type];
+              break;
+            }
+          }
+        }
+      }
+      
+      // If still no type, default to 'Other'
+      if (!cuisineType) {
+        cuisineType = 'Other';
+      }
+
       // Download new photos (mark as from_google for future refresh)
       const newPhotoUrls: string[] = [];
       if (data.photos && Array.isArray(data.photos)) {
@@ -108,7 +132,7 @@ export const useGoogleDataRefresh = (restaurant: RestaurantData | null) => {
         }
       }
 
-      return { openingHours, description, newPhotoUrls };
+      return { openingHours, description, newPhotoUrls, cuisineType };
     },
     onSuccess: async (data, placeId) => {
       if (!restaurant) return;
@@ -123,6 +147,9 @@ export const useGoogleDataRefresh = (restaurant: RestaurantData | null) => {
       }
       if (data.description) {
         updateData.description = data.description;
+      }
+      if (data.cuisineType) {
+        updateData.cuisine_type = data.cuisineType;
       }
 
       await supabase
