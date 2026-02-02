@@ -19,6 +19,7 @@ interface PlaceDetails {
   placeId: string;
   description?: string;
   cuisineType?: string;
+  types?: string[];
   photos?: string[];
 }
 
@@ -206,11 +207,6 @@ export const GooglePlacesAutocomplete = ({
           }
         }
         
-        // If still no type, default to 'Other'
-        if (!cuisineType) {
-          cuisineType = 'Other';
-        }
-  
         // Get description from generativeSummary first, then editorialSummary
         let description: string | undefined;
         if (data.generativeSummary?.overview?.text) {
@@ -245,6 +241,7 @@ export const GooglePlacesAutocomplete = ({
           openingHours: data.regularOpeningHours?.weekdayDescriptions,
           description,
           cuisineType,
+          types: data.types,
           photos: photoUrls.length > 0 ? photoUrls : undefined,
         });
   

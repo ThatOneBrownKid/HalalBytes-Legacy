@@ -70,6 +70,7 @@ export const AdminRestaurantForm = ({ editRestaurantId, onSuccess }: AdminRestau
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [formData, setFormData] = useState<RestaurantFormData>(getDefaultFormData());
   const [searchQuery, setSearchQuery] = useState("");
+  const [cuisineError, setCuisineError] = useState<string | null>(null);
 
   const isEditing = !!editRestaurantId;
 
@@ -270,6 +271,7 @@ export const AdminRestaurantForm = ({ editRestaurantId, onSuccess }: AdminRestau
     openingHours?: string[];
     description?: string;
     cuisineType?: string;
+    types?: string[];
     photos?: string[];
     placeId?: string;
   }) => {
@@ -277,6 +279,7 @@ export const AdminRestaurantForm = ({ editRestaurantId, onSuccess }: AdminRestau
     setFormData(getDefaultFormData());
     setImages([]);
     setSearchQuery("");
+    setCuisineError(null);
 
     const priceMap: Record<number, "$" | "$$" | "$$$" | "$$$$"> = {
       1: "$",
@@ -284,6 +287,103 @@ export const AdminRestaurantForm = ({ editRestaurantId, onSuccess }: AdminRestau
       3: "$$$",
       4: "$$$$",
     };
+
+    // Robust Cuisine Detection
+    let matchedCuisine = "";
+    
+    const cuisineMapping: Record<string, string> = {
+      "Yemeni": "Middle Eastern",
+      "Lebanese": "Middle Eastern",
+      "Turkish": "Middle Eastern",
+      "Persian": "Middle Eastern",
+      "Iranian": "Middle Eastern",
+      "Afghan": "Middle Eastern",
+      "Syrian": "Middle Eastern",
+      "Iraqi": "Middle Eastern",
+      "Egyptian": "Middle Eastern",
+      "Palestinian": "Middle Eastern",
+      "Jordanian": "Middle Eastern",
+      "Saudi": "Middle Eastern",
+      "Kuwaiti": "Middle Eastern",
+      "Emirati": "Middle Eastern",
+      "Pakistani": "South Asian",
+      "Indian": "South Asian",
+      "Bangladeshi": "South Asian",
+      "Sri Lankan": "South Asian",
+      "Nepali": "South Asian",
+      "Mexican": "Latin American",
+      "Brazilian": "Latin American",
+      "Peruvian": "Latin American",
+      "Argentinian": "Latin American",
+      "Colombian": "Latin American",
+      "Venezuelan": "Latin American",
+      "Cuban": "Latin American",
+      "Ethiopian": "African",
+      "Somali": "African",
+      "Nigerian": "African",
+      "Eritrean": "African",
+      "Ghanaian": "African",
+      "Senegalese": "African",
+      "Moroccan": "Middle Eastern",
+      "Tunisian": "Middle Eastern",
+      "Algerian": "Middle Eastern",
+      "Libyan": "Middle Eastern",
+      "Sudanese": "African",
+      "Chinese": "East Asian",
+      "Japanese": "East Asian",
+      "Korean": "East Asian",
+      "Vietnamese": "Southeast Asian",
+      "Thai": "Southeast Asian",
+      "Filipino": "Southeast Asian",
+      "Indonesian": "Southeast Asian",
+      "Malaysian": "Southeast Asian",
+      "Singaporean": "Southeast Asian",
+      "Italian": "European",
+      "French": "European",
+      "Spanish": "European",
+      "German": "European",
+      "Greek": "European",
+      "Mediterranean": "Middle Eastern",
+    };
+
+    const normalizeType = (type: string) => {
+      return type
+        .replace(/_restaurant$/, '')
+        .split('_')
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+    };
+
+    const checkCuisine = (type: string) => {
+      // 1. Check mapping first (priority to consolidation)
+      if (cuisineMapping[type] && cuisineTypes.includes(cuisineMapping[type])) {
+        return cuisineMapping[type];
+      }
+      
+      // 2. Check direct match
+      if (cuisineTypes.includes(type)) return type;
+
+      // 3. Case insensitive match
+      const found = cuisineTypes.find(c => c.toLowerCase() === type.toLowerCase());
+      if (found) return found;
+
+      return null;
+    };
+
+    if (place.cuisineType) {
+      matchedCuisine = checkCuisine(place.cuisineType) || "";
+    }
+
+    if (!matchedCuisine && place.types) {
+      for (const type of place.types) {
+        const normalized = normalizeType(type);
+        const found = checkCuisine(normalized);
+        if (found) {
+          matchedCuisine = found;
+          break;
+        }
+      }
+    }
 
     setFormData(prev => ({
       ...prev,
@@ -296,7 +396,7 @@ export const AdminRestaurantForm = ({ editRestaurantId, onSuccess }: AdminRestau
       price_range: place.priceLevel ? priceMap[place.priceLevel] || "$$" : prev.price_range,
       opening_hours: place.openingHours ? parseGoogleHours(place.openingHours) : prev.opening_hours,
       description: place.description || prev.description,
-      cuisine_type: place.cuisineType && cuisineTypes.includes(place.cuisineType) ? place.cuisineType : "Other",
+      cuisine_type: matchedCuisine,
       google_place_id: place.placeId || prev.google_place_id,
     }));
 
@@ -312,6 +412,10 @@ export const AdminRestaurantForm = ({ editRestaurantId, onSuccess }: AdminRestau
     }
 
     toast.success("Restaurant details filled from search");
+    
+    if (!matchedCuisine) {
+      setCuisineError("Could not auto-detect cuisine. Please select the best match.");
+    }
   };
 
   if (isLoadingRestaurant) {
@@ -390,15 +494,23 @@ export const AdminRestaurantForm = ({ editRestaurantId, onSuccess }: AdminRestau
 
           <div className="space-y-2">
             <Label htmlFor="cuisine">Cuisine Type *</Label>
+            {cuisineError && (
+              <p className="text-sm text-destructive font-medium animate-pulse">
+                {cuisineError}
+              </p>
+            )}
             <Select
               value={formData.cuisine_type}
-              onValueChange={(value) => setFormData({ ...formData, cuisine_type: value })}
+              onValueChange={(value) => {
+                setFormData({ ...formData, cuisine_type: value });
+                setCuisineError(null);
+              }}
             >
-              <SelectTrigger>
+              <SelectTrigger className={cuisineError ? "border-destructive" : ""}>
                 <SelectValue placeholder="Select cuisine type" />
               </SelectTrigger>
               <SelectContent>
-                {cuisineTypes.map((cuisine) => (
+                {cuisineTypes.filter(c => c !== "Other").map((cuisine) => (
                   <SelectItem key={cuisine} value={cuisine}>
                     {cuisine}
                   </SelectItem>
