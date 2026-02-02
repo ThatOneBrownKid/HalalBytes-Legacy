@@ -300,46 +300,15 @@ export const AdminRestaurantForm = ({ editRestaurantId, onSuccess }: AdminRestau
       google_place_id: place.placeId || prev.google_place_id,
     }));
 
-    // Download photos from Google and add to images
+    // Add Google Photo URLs directly to the images state
     if (place.photos && place.photos.length > 0) {
-      toast.info(`Found ${place.photos.length} photos. Downloading...`);
-      
-      for (const photoUrl of place.photos) {
-        const newId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
-        setImages(prev => [...prev, { id: newId, url: photoUrl, isUploading: true }]);
-        
-        try {
-          const response = await fetch(photoUrl);
-          if (!response.ok) throw new Error('Failed to fetch photo');
-          
-          const blob = await response.blob();
-          const fileName = `restaurants/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
-          
-          const { error } = await supabase.storage
-            .from('restaurant-images')
-            .upload(fileName, blob, {
-              cacheControl: '3600',
-              upsert: false,
-              contentType: 'image/jpeg'
-            });
-          
-          if (error) throw error;
-          
-          const { data: publicUrl } = supabase.storage
-            .from('restaurant-images')
-            .getPublicUrl(fileName);
-          
-          setImages(prev => prev.map(img => 
-            img.id === newId 
-              ? { ...img, url: publicUrl.publicUrl, isUploading: false }
-              : img
-          ));
-        } catch (error) {
-          console.error('Failed to download photo:', error);
-          setImages(prev => prev.filter(img => img.id !== newId));
-        }
-      }
+      const googleImages = place.photos.map(url => ({
+        id: `google-${Date.now()}-${Math.random()}`,
+        url: url,
+        isUploading: false,
+      }));
+      setImages(prev => [...prev, ...googleImages]);
+      toast.info(`Added ${place.photos.length} photos from Google.`);
     }
 
     toast.success("Restaurant details filled from search");

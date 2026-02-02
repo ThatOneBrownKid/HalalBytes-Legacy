@@ -2,7 +2,6 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Search, MapPin, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
 
 const MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 
@@ -145,174 +144,129 @@ export const GooglePlacesAutocomplete = ({
     }, 300);
   };
 
-  // Download photo from Google and upload to Supabase storage
-  const downloadAndStorePhoto = async (photoName: string, restaurantName: string, index: number): Promise<string | null> => {
-    try {
-      const photoUrl = `https://places.googleapis.com/v1/${photoName}/media?maxHeightPx=800&maxWidthPx=1200&key=${MAPS_API_KEY}`;
-      
-      const response = await fetch(photoUrl);
-      if (!response.ok) return null;
-      
-      const blob = await response.blob();
-      const fileName = `google-${Date.now()}-${index}.jpg`;
-      const filePath = `${fileName}`;
-      
-      const { data, error } = await supabase.storage
-        .from('restaurant-images')
-        .upload(filePath, blob, {
-          contentType: 'image/jpeg',
-          upsert: false
+  
+    const handleSelectPlace = async (prediction: PlacePrediction) => {
+      onQueryChange(prediction.structuredFormat.mainText.text);
+      setPredictions([]);
+      setIsFocused(false);
+      setIsLoading(true);
+  
+      try {
+        if (!MAPS_API_KEY) {
+          throw new Error("Google Maps API key not configured.");
+        }
+  
+        // Request generativeSummary for description
+        const fields = "id,displayName,formattedAddress,location,internationalPhoneNumber,websiteUri,priceLevel,regularOpeningHours,generativeSummary,editorialSummary,primaryType,types,photos";
+        const params = new URLSearchParams({
+          sessionToken: sessionTokenRef.current,
         });
-      
-      if (error) {
-        console.error('Error uploading photo:', error);
-        return null;
-      }
-      
-      const { data: urlData } = supabase.storage
-        .from('restaurant-images')
-        .getPublicUrl(filePath);
-      
-      return urlData.publicUrl;
-    } catch (err) {
-      console.error('Error downloading/storing photo:', err);
-      return null;
-    }
-  };
-
-  const handleSelectPlace = async (prediction: PlacePrediction) => {
-    onQueryChange(prediction.structuredFormat.mainText.text);
-    setPredictions([]);
-    setIsFocused(false);
-    setIsLoading(true);
-
-    try {
-      if (!MAPS_API_KEY) {
-        throw new Error("Google Maps API key not configured.");
-      }
-
-      // Request generativeSummary for description
-      const fields = "id,displayName,formattedAddress,location,internationalPhoneNumber,websiteUri,priceLevel,regularOpeningHours,generativeSummary,editorialSummary,primaryType,types,photos";
-      const params = new URLSearchParams({
-        sessionToken: sessionTokenRef.current,
-      });
-
-      const response = await fetch(`https://places.googleapis.com/v1/places/${prediction.placeId}?${params.toString()}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': MAPS_API_KEY,
-          'X-Goog-FieldMask': fields,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error("Places API (New) Details Error:", data);
-        throw new Error(data.error?.message || "Failed to fetch place details.");
-      }
-      
-      console.log("Places API (New) Details Response:", data);
-
-      // Parse price level from string like "PRICE_LEVEL_MODERATE" to number
-      const priceLevelMap: Record<string, number> = {
-        'PRICE_LEVEL_FREE': 0,
-        'PRICE_LEVEL_INEXPENSIVE': 1,
-        'PRICE_LEVEL_MODERATE': 2,
-        'PRICE_LEVEL_EXPENSIVE': 3,
-        'PRICE_LEVEL_VERY_EXPENSIVE': 4,
-      };
-
-      // Get cuisine type using the custom tagger first
-      let cuisineType = getCustomCategory(data);
-
-      // Fallback to existing logic if no custom category is found
-      if (!cuisineType) {
-        if (data.primaryType && cuisineTypeMap[data.primaryType]) {
-          cuisineType = cuisineTypeMap[data.primaryType];
-        } else if (data.types) {
-          for (const type of data.types) {
-            if (cuisineTypeMap[type]) {
-              cuisineType = cuisineTypeMap[type];
-              break;
+  
+        const response = await fetch(`https://places.googleapis.com/v1/places/${prediction.placeId}?${params.toString()}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': MAPS_API_KEY,
+            'X-Goog-FieldMask': fields,
+          },
+        });
+  
+        const data = await response.json();
+  
+        if (!response.ok) {
+          console.error("Places API (New) Details Error:", data);
+          throw new Error(data.error?.message || "Failed to fetch place details.");
+        }
+        
+        console.log("Places API (New) Details Response:", data);
+  
+        // Parse price level from string like "PRICE_LEVEL_MODERATE" to number
+        const priceLevelMap: Record<string, number> = {
+          'PRICE_LEVEL_FREE': 0,
+          'PRICE_LEVEL_INEXPENSIVE': 1,
+          'PRICE_LEVEL_MODERATE': 2,
+          'PRICE_LEVEL_EXPENSIVE': 3,
+          'PRICE_LEVEL_VERY_EXPENSIVE': 4,
+        };
+  
+        // Get cuisine type using the custom tagger first
+        let cuisineType = getCustomCategory(data);
+  
+        // Fallback to existing logic if no custom category is found
+        if (!cuisineType) {
+          if (data.primaryType && cuisineTypeMap[data.primaryType]) {
+            cuisineType = cuisineTypeMap[data.primaryType];
+          } else if (data.types) {
+            for (const type of data.types) {
+              if (cuisineTypeMap[type]) {
+                cuisineType = cuisineTypeMap[type];
+                break;
+              }
             }
           }
         }
-      }
-      
-      // If still no type, default to 'Other'
-      if (!cuisineType) {
-        cuisineType = 'Other';
-      }
-
-      // Get description from generativeSummary first, then editorialSummary
-      let description: string | undefined;
-      if (data.generativeSummary?.overview?.text) {
-        description = data.generativeSummary.overview.text;
-      } else if (data.generativeSummary?.description?.text) {
-        description = data.generativeSummary.description.text;
-      } else if (data.editorialSummary?.text) {
-        description = data.editorialSummary.text;
-      }
-
-      // Get up to 5 photos and download them to our storage
-      const photoUrls: string[] = [];
-      if (data.photos && Array.isArray(data.photos)) {
-        const photoPromises = data.photos.slice(0, 5).map((photo: any, index: number) => {
-          if (photo.name) {
-            return downloadAndStorePhoto(photo.name, data.displayName?.text || 'restaurant', index);
-          }
-          return Promise.resolve(null);
-        });
         
-        const results = await Promise.all(photoPromises);
-        results.forEach(url => {
-          if (url) photoUrls.push(url);
+        // If still no type, default to 'Other'
+        if (!cuisineType) {
+          cuisineType = 'Other';
+        }
+  
+        // Get description from generativeSummary first, then editorialSummary
+        let description: string | undefined;
+        if (data.generativeSummary?.overview?.text) {
+          description = data.generativeSummary.overview.text;
+        } else if (data.generativeSummary?.description?.text) {
+          description = data.generativeSummary.description.text;
+        } else if (data.editorialSummary?.text) {
+          description = data.editorialSummary.text;
+        }
+  
+        // Get photo URLs directly from Google Places API
+        const photoUrls = data.photos?.slice(0, 5).map((photo: any) => 
+          `https://places.googleapis.com/v1/${photo.name}/media?maxHeightPx=800&maxWidthPx=1200&key=${MAPS_API_KEY}`
+        ) || [];
+  
+        // Parse display name correctly
+        const name = typeof data.displayName === 'object' && data.displayName?.text 
+          ? data.displayName.text 
+          : typeof data.displayName === 'string' 
+            ? data.displayName 
+            : prediction.structuredFormat.mainText.text;
+  
+        onPlaceSelect({
+          placeId: data.id || prediction.placeId,
+          name,
+          address: data.formattedAddress,
+          lat: data.location?.latitude || 0,
+          lng: data.location?.longitude || 0,
+          phone: data.internationalPhoneNumber,
+          website: data.websiteUri,
+          priceLevel: data.priceLevel ? priceLevelMap[data.priceLevel] || 2 : undefined,
+          openingHours: data.regularOpeningHours?.weekdayDescriptions,
+          description,
+          cuisineType,
+          photos: photoUrls.length > 0 ? photoUrls : undefined,
         });
+  
+        // Reset session token for the next "session"
+        sessionTokenRef.current = "";
+  
+      } catch (err: any) {
+        console.error("Place details error:", err);
+        setError(err.message);
+         // Fallback with basic info
+         onPlaceSelect({
+          placeId: prediction.placeId,
+          name: prediction.structuredFormat.mainText.text,
+          address: prediction.structuredFormat.secondaryText?.text || prediction.text.text,
+          lat: 0,
+          lng: 0,
+        });
+      } finally {
+        setIsLoading(false);
       }
-
-      // Parse display name correctly
-      const name = typeof data.displayName === 'object' && data.displayName?.text 
-        ? data.displayName.text 
-        : typeof data.displayName === 'string' 
-          ? data.displayName 
-          : prediction.structuredFormat.mainText.text;
-
-      onPlaceSelect({
-        placeId: data.id || prediction.placeId,
-        name,
-        address: data.formattedAddress,
-        lat: data.location?.latitude || 0,
-        lng: data.location?.longitude || 0,
-        phone: data.internationalPhoneNumber,
-        website: data.websiteUri,
-        priceLevel: data.priceLevel ? priceLevelMap[data.priceLevel] || 2 : undefined,
-        openingHours: data.regularOpeningHours?.weekdayDescriptions,
-        description,
-        cuisineType,
-        photos: photoUrls.length > 0 ? photoUrls : undefined,
-      });
-
-      // Reset session token for the next "session"
-      sessionTokenRef.current = "";
-
-    } catch (err: any) {
-      console.error("Place details error:", err);
-      setError(err.message);
-       // Fallback with basic info
-       onPlaceSelect({
-        placeId: prediction.placeId,
-        name: prediction.structuredFormat.mainText.text,
-        address: prediction.structuredFormat.secondaryText?.text || prediction.text.text,
-        lat: 0,
-        lng: 0,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+    };
+  
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       <div className="relative">

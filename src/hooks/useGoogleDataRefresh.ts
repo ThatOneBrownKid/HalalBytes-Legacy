@@ -98,39 +98,10 @@ export const useGoogleDataRefresh = (restaurant: RestaurantData | null) => {
         cuisineType = 'Other';
       }
 
-      // Download new photos (mark as from_google for future refresh)
-      const newPhotoUrls: string[] = [];
-      if (data.photos && Array.isArray(data.photos)) {
-        for (let i = 0; i < Math.min(data.photos.length, 5); i++) {
-          const photo = data.photos[i];
-          if (photo.name) {
-            try {
-              const photoUrl = `https://places.googleapis.com/v1/${photo.name}/media?maxHeightPx=800&maxWidthPx=1200&key=${MAPS_API_KEY}`;
-              const photoResponse = await fetch(photoUrl);
-              if (!photoResponse.ok) continue;
-              
-              const blob = await photoResponse.blob();
-              const fileName = `google-refresh-${Date.now()}-${i}.jpg`;
-              
-              const { error } = await supabase.storage
-                .from('restaurant-images')
-                .upload(fileName, blob, {
-                  contentType: 'image/jpeg',
-                  upsert: false,
-                });
-              
-              if (!error) {
-                const { data: urlData } = supabase.storage
-                  .from('restaurant-images')
-                  .getPublicUrl(fileName);
-                newPhotoUrls.push(urlData.publicUrl);
-              }
-            } catch (err) {
-              console.error('Error downloading photo:', err);
-            }
-          }
-        }
-      }
+      // Get new photo URLs directly from Google Places API
+      const newPhotoUrls = data.photos?.slice(0, 5).map((photo: any) =>
+        `https://places.googleapis.com/v1/${photo.name}/media?maxHeightPx=800&maxWidthPx=1200&key=${MAPS_API_KEY}`
+      ) || [];
 
       return { openingHours, description, newPhotoUrls, cuisineType };
     },
