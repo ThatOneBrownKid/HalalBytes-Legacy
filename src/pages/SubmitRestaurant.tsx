@@ -18,7 +18,6 @@ import { ImageUploadZone } from "@/components/forms/ImageUploadZone";
 import { GooglePlacesAutocomplete } from "@/components/forms/GooglePlacesAutocomplete";
 import { OpeningHoursEditor, getDefaultOpeningHours, parseGoogleHours, type OpeningHoursData } from "@/components/forms/OpeningHoursEditor";
 import { geocodeAddress } from "@/utils/geocoding";
-import { cuisineTypes } from "@/lib/cuisineTypes";
 
 interface UploadedImage {
   id: string;
@@ -34,6 +33,29 @@ const meatTypes = [
   { id: "goat", label: "Goat" },
   { id: "seafood", label: "Seafood" },
 ];
+
+const consolidatedCuisineTypes = [
+  "African",
+  "American",
+  "Asian Fusion",
+  "Bakery",
+  "Breakfast",
+  "Burgers",
+  "Cafe",
+  "Dessert",
+  "East Asian",
+  "European",
+  "Fast Food",
+  "Latin American",
+  "Middle Eastern",
+  "Pizza",
+  "Sandwiches",
+  "Seafood",
+  "South Asian",
+  "Southeast Asian",
+  "Steakhouse",
+  "Vegetarian",
+].sort();
 
 const SubmitRestaurant = () => {
   const navigate = useNavigate();
@@ -183,15 +205,15 @@ const SubmitRestaurant = () => {
 
     const checkCuisine = (type: string) => {
       // 1. Check mapping first (priority to consolidation)
-      if (cuisineMapping[type] && cuisineTypes.includes(cuisineMapping[type])) {
+      if (cuisineMapping[type] && consolidatedCuisineTypes.includes(cuisineMapping[type])) {
         return cuisineMapping[type];
       }
       
       // 2. Check direct match
-      if (cuisineTypes.includes(type)) return type;
+      if (consolidatedCuisineTypes.includes(type)) return type;
 
       // 3. Case insensitive match
-      const found = cuisineTypes.find(c => c.toLowerCase() === type.toLowerCase());
+      const found = consolidatedCuisineTypes.find(c => c.toLowerCase() === type.toLowerCase());
       if (found) return found;
 
       return null;
@@ -434,7 +456,7 @@ const SubmitRestaurant = () => {
                           <SelectValue placeholder="Select cuisine type" />
                         </SelectTrigger>
                         <SelectContent>
-                          {cuisineTypes.filter(c => c !== "Other").map(cuisine => (
+                          {consolidatedCuisineTypes.map(cuisine => (
                             <SelectItem key={cuisine} value={cuisine}>{cuisine}</SelectItem>
                           ))}
                         </SelectContent>
