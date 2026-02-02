@@ -23,6 +23,19 @@ export default defineConfig(({ mode }) => ({
         target: 'http://127.0.0.1:8788',
         changeOrigin: true,
       },
+      '/moderate-avatar': {
+        target: 'http://127.0.0.1:8788',
+        changeOrigin: true,
+      },
+      '/image-proxy': {
+        target: 'http://127.0.0.1:8788',
+        changeOrigin: true,
+        configure: (proxy, options) => {
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            console.log('Proxying request:', req.url);
+          });
+        },
+      },
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),

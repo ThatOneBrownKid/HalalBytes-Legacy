@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { User, Camera, Save, Loader2, Upload, AlertTriangle } from "lucide-react";
+import { User, Camera, Save, Loader2, Upload, AlertTriangle, Trash2 } from "lucide-react";
 
 // Helper to convert file to base64 data URI
 const fileToBase64 = (file: File): Promise<string> => {
@@ -44,13 +44,29 @@ const Profile = () => {
     }
   });
 
+  const deleteImageFromStorage = async (url: string) => {
+    try {
+      if (!url || !url.includes('restaurant-images')) return;
+      const path = url.split('/restaurant-images/')[1];
+      if (path) {
+        await supabase.storage.from('restaurant-images').remove([path]);
+      }
+    } catch (error) {
+      console.error("Error deleting old image:", error);
+    }
+  };
+
   const updateProfileMutation = useMutation({
     mutationFn: async ({ username, avatar_url }: { username: string; avatar_url: string }) => {
       if (!user) throw new Error("Not authenticated");
       
+      if (profile?.avatar_url && profile.avatar_url !== avatar_url) {
+        await deleteImageFromStorage(profile.avatar_url);
+      }
+
       const { error } = await supabase
         .from("profiles")
-        .update({ username, avatar_url })
+        .update({ username, avatar_url: avatar_url || null })
         .eq("user_id", user.id);
       
       if (error) throw error;
@@ -87,21 +103,30 @@ const Profile = () => {
     try {
       // First, moderate the image
       const imageBase64 = await fileToBase64(file);
+      console.log('Starting avatar moderation...');
       
-      const { data: moderationResult, error: moderationError } = await supabase.functions.invoke('moderate-review', {
-        body: { 
-          imageBase64,
-          moderationType: 'avatar'
-        }
+      const response = await fetch('/moderate-avatar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          imageBase64
+        })
       });
 
-      if (moderationError) {
-        console.error('Moderation function error:', moderationError);
+      if (!response.ok) {
+        console.error('Moderation function error:', response.statusText);
         // Continue if moderation service fails
-      } else if (moderationResult && !moderationResult.safe) {
-        setModerationError(moderationResult.reason || 'This image violates our community guidelines.');
-        setIsUploading(false);
-        return;
+      } else {
+        const result = await response.json();
+        console.log('Moderation result:', result);
+        
+        if (result.success && result.data && !result.data.safe) {
+          setModerationError(result.data.reason || 'This image violates our community guidelines.');
+          setIsUploading(false);
+          return;
+        }
       }
 
       // Create unique file path
@@ -126,6 +151,10 @@ const Profile = () => {
 
       // If in edit mode, just update the state. Otherwise, save immediately
       if (!isEditing) {
+        if (profile?.avatar_url) {
+          await deleteImageFromStorage(profile.avatar_url);
+        }
+
         await supabase
           .from("profiles")
           .update({ avatar_url: newAvatarUrl })
@@ -134,6 +163,10 @@ const Profile = () => {
         queryClient.invalidateQueries({ queryKey: ["profile"] });
         toast.success("Avatar updated!");
       } else {
+        // If we are replacing a temp image we just uploaded in this session
+        if (avatarUrl && avatarUrl !== profile?.avatar_url) {
+          await deleteImageFromStorage(avatarUrl);
+        }
         toast.success("Avatar uploaded! Click Save to keep it.");
       }
     } catch (error: any) {
@@ -141,6 +174,37 @@ const Profile = () => {
       toast.error(error.message || "Failed to upload avatar");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleDeleteAvatar = async () => {
+    if (!user) return;
+    
+    if (!isEditing) {
+      if (!profile?.avatar_url) return;
+      
+      if (window.confirm("Are you sure you want to remove your profile picture?")) {
+        await deleteImageFromStorage(profile.avatar_url);
+        
+        const { error } = await supabase
+          .from("profiles")
+          .update({ avatar_url: null })
+          .eq("user_id", user.id);
+          
+        if (error) {
+          toast.error("Failed to remove avatar");
+          return;
+        }
+        
+        setAvatarUrl("");
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
+        toast.success("Avatar removed");
+      }
+    } else {
+      if (avatarUrl && avatarUrl !== profile?.avatar_url) {
+        await deleteImageFromStorage(avatarUrl);
+      }
+      setAvatarUrl("");
     }
   };
 
@@ -206,7 +270,9 @@ const Profile = () => {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="absolute inset-0 rounded-full bg-foreground/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                className={`absolute inset-0 rounded-full bg-foreground/60 flex items-center justify-center transition-opacity cursor-pointer z-10 ${
+                  isUploading ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                }`}
               >
                 {isUploading ? (
                   <Loader2 className="h-6 w-6 text-background animate-spin" />
@@ -214,6 +280,20 @@ const Profile = () => {
                   <Camera className="h-6 w-6 text-background" />
                 )}
               </button>
+
+              {avatarUrl && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteAvatar();
+                  }}
+                  disabled={isUploading}
+                  className="absolute -top-1 -right-1 p-1.5 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-destructive/90 z-20"
+                  title="Remove photo"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              )}
               
               <input
                 ref={fileInputRef}
