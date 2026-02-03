@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { MapPin, Navigation, ExternalLink } from "lucide-react";
+import { useState, lazy, Suspense } from "react";
+import { Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,19 +8,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Lazy load the map
+const RestaurantMap = lazy(() => import("@/components/map/RestaurantMap").then(m => ({ default: m.RestaurantMap })));
+
 
 interface LocationMapLinkProps {
   lat: number;
   lng: number;
   address: string;
-  name: string;
+  name:string;
 }
 
 export const LocationMapLink = ({ lat, lng, address, name }: LocationMapLinkProps) => {
-  const isMobile = useIsMobile();
   const [showMapOptions, setShowMapOptions] = useState(false);
-  const [imageError, setImageError] = useState(false);
 
   const encodedAddress = encodeURIComponent(address);
   const encodedName = encodeURIComponent(name);
@@ -31,24 +33,24 @@ export const LocationMapLink = ({ lat, lng, address, name }: LocationMapLinkProp
     waze: `https://waze.com/ul?ll=${lat},${lng}&navigate=yes&q=${encodedName}`,
   };
 
-  // Use multiple static map providers as fallbacks
-  const mapImageUrls = [
-    // OpenStreetMap static map via MapBox-like service
-    `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01}%2C${lat - 0.01}%2C${lng + 0.01}%2C${lat + 0.01}&layer=mapnik&marker=${lat}%2C${lng}`,
-  ];
-
   const handleClick = () => {
-    if (isMobile) {
-      setShowMapOptions(true);
-    } else {
-      // On desktop, open Google Maps directly
-      window.open(mapLinks.google, "_blank");
-    }
+    // Always show the dialog on click now
+    setShowMapOptions(true);
   };
 
   const openMap = (service: "google" | "apple" | "waze") => {
     window.open(mapLinks[service], "_blank");
     setShowMapOptions(false);
+  };
+  
+  // Create a minimal restaurant object for the map
+  const mapRestaurant = {
+    id: address, // Using address as a unique enough ID for this context
+    name: name,
+    lat: lat,
+    lng: lng,
+    halal_status: 'Full Halal' as const, // Default value
+    is_sponsored: false, // Default value
   };
 
   return (
@@ -57,27 +59,18 @@ export const LocationMapLink = ({ lat, lng, address, name }: LocationMapLinkProp
         onClick={handleClick}
         className="relative w-full h-48 rounded-xl overflow-hidden cursor-pointer group border"
       >
-        {/* Use an iframe for OSM embed which works more reliably */}
-        {!imageError ? (
-          <iframe
-            src={`https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.005}%2C${lat - 0.003}%2C${lng + 0.005}%2C${lat + 0.003}&layer=mapnik&marker=${lat}%2C${lng}`}
-            className="w-full h-full border-0 pointer-events-none [&_*]:hidden"
-            style={{ overflow: 'hidden' }}
-            title={`Map location of ${name}`}
-            scrolling="no"
-            onError={() => setImageError(true)}
+        <Suspense fallback={<Skeleton className="w-full h-full" />}>
+          <RestaurantMap
+            restaurants={[mapRestaurant]}
+            center={{ lat, lng }}
+            zoom={15}
+            isMobile={false} // Force desktop popups for this single view
           />
-        ) : (
-          // Fallback to a simple visual with coordinates
-          <div className="w-full h-full bg-muted flex flex-col items-center justify-center gap-2">
-            <MapPin className="h-8 w-8 text-primary" />
-            <span className="text-sm text-muted-foreground">View on Map</span>
-          </div>
-        )}
+        </Suspense>
         
         {/* Overlay with directions button */}
-        <div className="absolute inset-0 bg-foreground/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button className="gap-2 pointer-events-none">
+        <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button className="gap-2 pointer-events-none shadow-md">
             <Navigation className="h-4 w-4" />
             Get Directions
           </Button>
@@ -100,8 +93,8 @@ export const LocationMapLink = ({ lat, lng, address, name }: LocationMapLinkProp
               className="w-full justify-start gap-3 h-14"
               onClick={() => openMap("google")}
             >
-              <div className="w-8 h-8 rounded-full bg-[#4285f4] flex items-center justify-center">
-                <span className="text-white font-bold text-sm">G</span>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center">
+                 <img src="/google-maps-icon.svg" alt="Google Maps" className="w-6 h-6" />
               </div>
               <div className="text-left">
                 <div className="font-medium">Google Maps</div>
@@ -114,8 +107,8 @@ export const LocationMapLink = ({ lat, lng, address, name }: LocationMapLinkProp
               className="w-full justify-start gap-3 h-14"
               onClick={() => openMap("apple")}
             >
-              <div className="w-8 h-8 rounded-full bg-foreground flex items-center justify-center">
-                <span className="text-background font-bold text-sm">🍎</span>
+               <div className="w-8 h-8 rounded-full flex items-center justify-center">
+                <img src="/apple-maps-icon.svg" alt="Apple Maps" className="w-6 h-6" />
               </div>
               <div className="text-left">
                 <div className="font-medium">Apple Maps</div>
@@ -128,8 +121,8 @@ export const LocationMapLink = ({ lat, lng, address, name }: LocationMapLinkProp
               className="w-full justify-start gap-3 h-14"
               onClick={() => openMap("waze")}
             >
-              <div className="w-8 h-8 rounded-full bg-[#33ccff] flex items-center justify-center">
-                <span className="text-white font-bold text-sm">W</span>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center">
+                <img src="/waze-icon.svg" alt="Waze" className="w-6 h-6" />
               </div>
               <div className="text-left">
                 <div className="font-medium">Waze</div>

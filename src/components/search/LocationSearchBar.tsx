@@ -46,7 +46,7 @@ export const LocationSearchBar = ({
     setIsLoading(true);
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1`,
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1&countrycodes=us`,
         { headers: { 'Accept': 'application/json' } }
       );
       
@@ -102,7 +102,11 @@ export const LocationSearchBar = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSearch?.(query);
+    if (suggestions.length > 0) {
+      handleSuggestionSelect(suggestions[0]);
+    } else {
+      onSearch?.(query);
+    }
     setSuggestions([]);
   };
 
