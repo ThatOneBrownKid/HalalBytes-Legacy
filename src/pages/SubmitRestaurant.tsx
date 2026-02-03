@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, Loader2, MapPin, Phone, Globe, Search, PenLine, Check } from "lucide-react";
@@ -57,6 +57,30 @@ const consolidatedCuisineTypes = [
   "Vegetarian",
 ].sort();
 
+const uploadGooglePhoto = async (url: string) => {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const ext = blob.type.split('/')[1] || 'jpg';
+    const fileName = `submissions/google-${Date.now()}-${Math.random()}.${ext}`;
+    
+    const { error } = await supabase.storage
+      .from('restaurant-images')
+      .upload(fileName, blob);
+      
+    if (error) throw error;
+    
+    const { data } = supabase.storage
+      .from('restaurant-images')
+      .getPublicUrl(fileName);
+      
+    return { url: data.publicUrl, path: fileName };
+  } catch (error) {
+    console.error('Error uploading Google photo:', error);
+    return null;
+  }
+};
+
 const SubmitRestaurant = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -65,6 +89,20 @@ const SubmitRestaurant = () => {
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [cuisineError, setCuisineError] = useState<string | null>(null);
+
+  // Track uploaded Google images to clean up if form is abandoned
+  const googleImagePathsRef = useRef<string[]>([]);
+  const isSubmittedRef = useRef(false);
+
+  // Cleanup on unmount if not submitted
+  useEffect(() => {
+    return () => {
+      if (!isSubmittedRef.current && googleImagePathsRef.current.length > 0) {
+        // Delete all uploaded Google images if the user leaves without submitting
+        supabase.storage.from('restaurant-images').remove(googleImagePathsRef.current);
+      }
+    };
+  }, []);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -250,13 +288,24 @@ const SubmitRestaurant = () => {
 
     // Add Google Photo URLs directly to the images state
     if (place.photos && place.photos.length > 0) {
-      const googleImages = place.photos.map(url => ({
-        id: `google-${Date.now()}-${Math.random()}`,
-        url: url,
-        isUploading: false,
+      const photosToProcess = place.photos.slice(0, 5);
+      toast.info(`Processing ${photosToProcess.length} photos from Google...`);
+      
+      const processedPhotos = await Promise.all(photosToProcess.map(async (url) => {
+        const result = await uploadGooglePhoto(url);
+        if (result) {
+          googleImagePathsRef.current.push(result.path);
+        }
+
+        return {
+          id: `google-${Date.now()}-${Math.random()}`,
+          url: result?.url || url, // Fallback to Google URL if upload fails
+          isUploading: false,
+        };
       }));
-      setImages(prev => [...prev, ...googleImages]);
-      toast.info(`Added ${place.photos.length} photos from Google.`);
+      
+      setImages(prev => [...prev, ...processedPhotos]);
+      toast.success(`Added ${photosToProcess.length} photos.`);
     }
 
     toast.success("Restaurant details filled from search");
@@ -330,6 +379,18 @@ const SubmitRestaurant = () => {
         }]);
 
       if (error) throw error;
+
+      isSubmittedRef.current = true;
+
+      // Clean up any Google images that were uploaded but not used in the final submission
+      const currentImageUrls = new Set(imageUrls);
+      const unusedPaths = googleImagePathsRef.current.filter(path => 
+        !currentImageUrls.has(supabase.storage.from('restaurant-images').getPublicUrl(path).data.publicUrl)
+      );
+      
+      if (unusedPaths.length > 0) {
+        supabase.storage.from('restaurant-images').remove(unusedPaths);
+      }
 
       toast.success("Restaurant submitted for review!", {
         description: "You can track its status in My Requests"

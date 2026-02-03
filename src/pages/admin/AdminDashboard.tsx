@@ -43,6 +43,7 @@ import { format } from "date-fns";
 import { AdminRestaurantForm } from "@/components/admin/AdminRestaurantForm";
 import { AdminUserManagement } from "@/components/admin/AdminUserManagement";
 import { AdminRestaurantList } from "@/components/admin/AdminRestaurantList";
+import { geocodeAddress } from "@/utils/geocoding";
 
 interface RestaurantRequest {
   id: string;
@@ -56,6 +57,9 @@ interface RestaurantRequest {
     description?: string;
     phone?: string;
     website_url?: string;
+    image_urls?: string[];
+    lat?: number;
+    lng?: number;
   };
   admin_notes: string | null;
   user_id: string;
@@ -122,7 +126,18 @@ const AdminDashboard = () => {
 
       const submissionData = request.submission_data as RestaurantRequest["submission_data"];
 
-      const { error: insertError } = await supabase.from("restaurants").insert({
+      let lat = submissionData.lat;
+      let lng = submissionData.lng;
+
+      if ((!lat || !lng) && submissionData.address) {
+        const geocoded = await geocodeAddress(submissionData.address);
+        if (geocoded) {
+          lat = geocoded.lat;
+          lng = geocoded.lng;
+        }
+      }
+
+      const { data: restaurant, error: insertError } = await supabase.from("restaurants").insert({
         name: submissionData.name || "Unnamed Restaurant",
         address: submissionData.address || "",
         cuisine_type: submissionData.cuisine_type || "Other",
@@ -131,12 +146,68 @@ const AdminDashboard = () => {
         description: submissionData.description || null,
         phone: submissionData.phone || null,
         website_url: submissionData.website_url || null,
-        lat: 40.7128,
-        lng: -74.0060,
+        lat: lat || 40.7128,
+        lng: lng || -74.0060,
         created_by: request.user_id,
-      });
+      })
+      .select()
+      .single();
 
       if (insertError) throw insertError;
+
+      // Handle images if present
+      if (submissionData.image_urls && Array.isArray(submissionData.image_urls) && submissionData.image_urls.length > 0) {
+        const processedImages = await Promise.all(submissionData.image_urls.map(async (url: string) => {
+          let finalUrl = url;
+          if (url.includes('/submissions/')) {
+            try {
+              const pathParts = url.split('/restaurant-images/');
+              if (pathParts.length > 1) {
+                let oldPath = decodeURIComponent(pathParts[1]);
+                // Strip query parameters if present
+                oldPath = oldPath.split('?')[0];
+                oldPath = oldPath.replace(/^\/+/, '');
+                if (oldPath.startsWith('submissions/')) {
+                  const newPath = oldPath.replace('submissions/', 'restaurants/');
+                  const { error: moveError } = await supabase.storage
+                    .from('restaurant-images')
+                    .move(oldPath, newPath);
+                  if (!moveError) {
+                    const { data: publicUrlData } = supabase.storage
+                      .from('restaurant-images')
+                      .getPublicUrl(newPath);
+                    finalUrl = publicUrlData.publicUrl;
+                  } else {
+                    // Fallback to copy if move fails (e.g. permissions)
+                    const { error: copyError } = await supabase.storage
+                      .from('restaurant-images')
+                      .copy(oldPath, newPath);
+                    if (!copyError) {
+                      const { data: publicUrlData } = supabase.storage
+                        .from('restaurant-images')
+                        .getPublicUrl(newPath);
+                      finalUrl = publicUrlData.publicUrl;
+                      // Try to delete original
+                      await supabase.storage.from('restaurant-images').remove([oldPath]);
+                    }
+                  }
+                }
+              }
+            } catch (e) {
+              console.error("Error moving image:", e);
+            }
+          }
+          return finalUrl;
+        }));
+
+        const imageInserts = processedImages.map((url: string, index: number) => ({
+          restaurant_id: restaurant.id,
+          url,
+          is_primary: index === 0,
+        }));
+
+        await supabase.from("restaurant_images").insert(imageInserts);
+      }
 
       const { error: updateError } = await supabase
         .from("restaurant_requests")
@@ -162,6 +233,33 @@ const AdminDashboard = () => {
   // Reject request mutation
   const rejectRequestMutation = useMutation({
     mutationFn: async ({ requestId, adminNotes }: { requestId: string; adminNotes: string }) => {
+      // Fetch request to get images for deletion
+      const { data: request } = await supabase
+        .from("restaurant_requests")
+        .select("submission_data")
+        .eq("id", requestId)
+        .single();
+
+      if (request?.submission_data) {
+        const submissionData = request.submission_data as RestaurantRequest["submission_data"];
+        if (submissionData.image_urls && Array.isArray(submissionData.image_urls)) {
+          const pathsToDelete = submissionData.image_urls
+            .map(url => {
+              if (!url.includes('/submissions/')) return null;
+              const parts = url.split('/restaurant-images/');
+              if (parts.length < 2) return null;
+              let path = decodeURIComponent(parts[1]).split('?')[0];
+              path = path.replace(/^\/+/, '');
+              return path;
+            })
+            .filter((path): path is string => path !== null && path.startsWith('submissions/'));
+
+          if (pathsToDelete.length > 0) {
+            await supabase.storage.from('restaurant-images').remove(pathsToDelete);
+          }
+        }
+      }
+
       const { error } = await supabase
         .from("restaurant_requests")
         .update({

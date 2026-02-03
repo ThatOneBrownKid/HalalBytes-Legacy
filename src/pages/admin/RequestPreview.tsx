@@ -123,7 +123,54 @@ const RequestPreview = () => {
 
       // Add images
       if (images.length > 0) {
-        const imageInserts = images.map((url, index) => ({
+        const processedImages = await Promise.all(images.map(async (url) => {
+          let finalUrl = url;
+          
+          // Check if image is in submissions folder and move it to restaurants
+          if (url.includes('/submissions/')) {
+            try {
+              const pathParts = url.split('/restaurant-images/');
+              if (pathParts.length > 1) {
+                let oldPath = decodeURIComponent(pathParts[1]);
+                // Strip query parameters if present
+                oldPath = oldPath.split('?')[0];
+                oldPath = oldPath.replace(/^\/+/, '');
+                if (oldPath.startsWith('submissions/')) {
+                  const newPath = oldPath.replace('submissions/', 'restaurants/');
+                  
+                  const { error: moveError } = await supabase.storage
+                    .from('restaurant-images')
+                    .move(oldPath, newPath);
+                    
+                  if (!moveError) {
+                    const { data: publicUrlData } = supabase.storage
+                      .from('restaurant-images')
+                      .getPublicUrl(newPath);
+                    finalUrl = publicUrlData.publicUrl;
+                  } else {
+                    // Fallback to copy if move fails (e.g. permissions)
+                    const { error: copyError } = await supabase.storage
+                      .from('restaurant-images')
+                      .copy(oldPath, newPath);
+                    if (!copyError) {
+                      const { data: publicUrlData } = supabase.storage
+                        .from('restaurant-images')
+                        .getPublicUrl(newPath);
+                      finalUrl = publicUrlData.publicUrl;
+                      // Try to delete original
+                      await supabase.storage.from('restaurant-images').remove([oldPath]);
+                    }
+                  }
+                }
+              }
+            } catch (e) {
+              console.error("Error moving image:", e);
+            }
+          }
+          return finalUrl;
+        }));
+
+        const imageInserts = processedImages.map((url, index) => ({
           restaurant_id: restaurant.id,
           url,
           is_primary: index === 0,
@@ -159,6 +206,24 @@ const RequestPreview = () => {
   // Reject mutation
   const rejectMutation = useMutation({
     mutationFn: async (notes: string) => {
+      // Delete images from storage if rejected
+      if (images.length > 0) {
+        const pathsToDelete = images
+          .map(url => {
+            if (!url.includes('/submissions/')) return null;
+            const parts = url.split('/restaurant-images/');
+            if (parts.length < 2) return null;
+            let path = decodeURIComponent(parts[1]).split('?')[0];
+            path = path.replace(/^\/+/, '');
+            return path;
+          })
+          .filter((path): path is string => path !== null && path.startsWith('submissions/'));
+
+        if (pathsToDelete.length > 0) {
+          await supabase.storage.from('restaurant-images').remove(pathsToDelete);
+        }
+      }
+
       const { error } = await supabase
         .from("restaurant_requests")
         .update({
