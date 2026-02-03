@@ -31,7 +31,6 @@ const meatTypes = [
   { id: "beef", label: "Beef" },
   { id: "lamb", label: "Lamb" },
   { id: "goat", label: "Goat" },
-  { id: "seafood", label: "Seafood" },
 ];
 
 const consolidatedCuisineTypes = [

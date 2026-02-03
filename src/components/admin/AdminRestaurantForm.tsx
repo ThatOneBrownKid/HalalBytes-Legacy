@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { Loader2, Search, PenLine } from "lucide-react";
 import { ImageUploadZone } from "@/components/forms/ImageUploadZone";
 import { GooglePlacesAutocomplete } from "@/components/forms/GooglePlacesAutocomplete";
+import { Checkbox } from "@/components/ui/checkbox";
 import { OpeningHoursEditor, getDefaultOpeningHours, parseGoogleHours, type OpeningHoursData } from "@/components/forms/OpeningHoursEditor";
 import { geocodeAddress } from "@/utils/geocoding";
 
@@ -32,6 +33,7 @@ interface RestaurantFormData {
   address: string;
   cuisine_type: string;
   halal_status: "Full Halal" | "Partial Halal";
+  partial_halal_meats: string[];
   price_range: "$" | "$$" | "$$$" | "$$$$";
   description: string;
   phone: string;
@@ -52,6 +54,7 @@ const getDefaultFormData = (): RestaurantFormData => ({
   address: "",
   cuisine_type: "",
   halal_status: "Full Halal",
+  partial_halal_meats: [],
   price_range: "$$",
   description: "",
   phone: "",
@@ -61,6 +64,13 @@ const getDefaultFormData = (): RestaurantFormData => ({
   opening_hours: getDefaultOpeningHours(),
   google_place_id: "",
 });
+
+const meatTypes = [
+  { id: "chicken", label: "Chicken" },
+  { id: "beef", label: "Beef" },
+  { id: "lamb", label: "Lamb" },
+  { id: "goat", label: "Goat" },
+];
 
 const consolidatedCuisineTypes = [
   "African",
@@ -78,7 +88,6 @@ const consolidatedCuisineTypes = [
   "Middle Eastern",
   "Pizza",
   "Sandwiches",
-  "Seafood",
   "South Asian",
   "Southeast Asian",
   "Steakhouse",
@@ -163,6 +172,7 @@ export const AdminRestaurantForm = ({ editRestaurantId, onSuccess }: AdminRestau
         address: existingRestaurant.address,
         cuisine_type: existingRestaurant.cuisine_type,
         halal_status: existingRestaurant.halal_status,
+        partial_halal_meats: existingRestaurant.partial_halal_meats || [],
         price_range: existingRestaurant.price_range,
         description: existingRestaurant.description || "",
         phone: existingRestaurant.phone || "",
@@ -189,6 +199,15 @@ export const AdminRestaurantForm = ({ editRestaurantId, onSuccess }: AdminRestau
     }
   }, [existingRestaurant]);
 
+  const handleMeatToggle = (meatId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      partial_halal_meats: prev.partial_halal_meats.includes(meatId)
+        ? prev.partial_halal_meats.filter(m => m !== meatId)
+        : [...prev.partial_halal_meats, meatId]
+    }));
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (data: RestaurantFormData) => {
       let lat = data.lat;
@@ -214,6 +233,7 @@ export const AdminRestaurantForm = ({ editRestaurantId, onSuccess }: AdminRestau
         address: data.address,
         cuisine_type: data.cuisine_type,
         halal_status: data.halal_status,
+        partial_halal_meats: data.halal_status === "Partial Halal" ? data.partial_halal_meats : [],
         price_range: data.price_range,
         description: data.description || null,
         phone: data.phone || null,
@@ -678,6 +698,28 @@ export const AdminRestaurantForm = ({ editRestaurantId, onSuccess }: AdminRestau
           </div>
         </div>
       </div>
+      {formData.halal_status === "Partial Halal" && (
+        <div className="space-y-2">
+          <Label>Halal Meat Types Available</Label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {meatTypes.map(meat => (
+              <div
+                key={meat.id}
+                className="flex items-center space-x-2"
+              >
+                <Checkbox
+                  id={`admin-${meat.id}`}
+                  checked={formData.partial_halal_meats.includes(meat.id)}
+                  onCheckedChange={() => handleMeatToggle(meat.id)}
+                />
+                <Label htmlFor={`admin-${meat.id}`} className="cursor-pointer text-sm">
+                  {meat.label}
+                </Label>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Opening Hours */}
       <OpeningHoursEditor
