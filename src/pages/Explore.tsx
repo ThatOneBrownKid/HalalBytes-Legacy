@@ -96,17 +96,35 @@ const Explore = () => {
     west: number;
   } | null>(null);
 
-  // Fetch IP-based location on mount
+  // Set location from URL search params if available
   useEffect(() => {
-    fetchIPLocation().then(location => {
+    const lat = searchParams.get('lat');
+    const lng = searchParams.get('lng');
+    const location = searchParams.get('location');
+
+    if (lat && lng) {
+      setMapCenter({ lat: parseFloat(lat), lng: parseFloat(lng) });
       if (location) {
-        setMapCenter({ lat: location.lat, lng: location.lng });
-        setCurrentLocation(location.city);
-      } else {
-        setCurrentLocation("New York, NY");
+        setCurrentLocation(location);
       }
-    });
-  }, []);
+    }
+  }, [searchParams]);
+
+  // Fetch IP-based location on mount if no location in URL
+  useEffect(() => {
+    // Only fetch IP location if there's no location from the URL
+    if (!searchParams.has('lat') || !searchParams.has('lng')) {
+      fetchIPLocation().then(location => {
+        if (location) {
+          setMapCenter({ lat: location.lat, lng: location.lng });
+          setCurrentLocation(location.city);
+        } else {
+          // Fallback to a default location if IP lookup fails
+          setCurrentLocation("New York, NY");
+        }
+      });
+    }
+  }, [searchParams]);
 
   // Fetch restaurants from database
   const { data: restaurants = [], isLoading } = useQuery({

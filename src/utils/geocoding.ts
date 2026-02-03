@@ -17,7 +17,7 @@ export async function geocodeAddress(address: string): Promise<GeocodingResult |
   try {
     const encodedAddress = encodeURIComponent(address);
     const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1`,
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&countrycodes=us`,
       {
         headers: {
           // Nominatim requires a valid User-Agent

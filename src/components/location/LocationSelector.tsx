@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { MapPin, Navigation, Loader2, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { MapPin, Navigation, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -8,6 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useGeolocation } from "@/hooks/useGeolocation";
+import { geocodeAddress, reverseGeocode } from "@/utils/geocoding"; // Import geocoding functions
 
 interface LocationSelectorProps {
   currentLocation: string;
@@ -17,24 +18,33 @@ interface LocationSelectorProps {
 export const LocationSelector = ({ currentLocation, onLocationChange }: LocationSelectorProps) => {
   const [open, setOpen] = useState(false);
   const [zipCode, setZipCode] = useState("");
-  const { latitude, longitude, loading, error, requestLocation } = useGeolocation();
+  const { latitude, longitude, loading: geolocationLoading, error, requestLocation } = useGeolocation();
+  const [isGeocoding, setIsGeocoding] = useState(false);
 
   const handleUseMyLocation = () => {
     requestLocation();
   };
 
-  // Update location when geolocation succeeds
-  const handleGeolocationSuccess = () => {
+  useEffect(() => {
     if (latitude && longitude) {
-      onLocationChange("Current Location", { lat: latitude, lng: longitude });
-      setOpen(false);
+      reverseGeocode(latitude, longitude).then(locationName => {
+        onLocationChange(locationName || "Current Location", { lat: latitude, lng: longitude });
+        setOpen(false);
+      });
     }
-  };
+  }, [latitude, longitude, onLocationChange]);
 
-  const handleZipCodeSubmit = () => {
+  const handleZipCodeSubmit = async () => {
     if (zipCode.trim()) {
-      // In a real app, you'd geocode the zip code here
-      onLocationChange(zipCode);
+      setIsGeocoding(true);
+      const result = await geocodeAddress(zipCode);
+      if (result) {
+        onLocationChange(result.formattedAddress || zipCode, { lat: result.lat, lng: result.lng });
+      } else {
+        // Handle case where geocoding fails (e.g., show a toast notification)
+        console.error("Could not find location for zip code:", zipCode);
+      }
+      setIsGeocoding(false);
       setOpen(false);
       setZipCode("");
     }
@@ -64,15 +74,10 @@ export const LocationSelector = ({ currentLocation, onLocationChange }: Location
           <Button
             variant="secondary"
             className="w-full gap-2"
-            onClick={() => {
-              handleUseMyLocation();
-              if (latitude && longitude) {
-                handleGeolocationSuccess();
-              }
-            }}
-            disabled={loading}
+            onClick={handleUseMyLocation}
+            disabled={geolocationLoading}
           >
-            {loading ? (
+            {geolocationLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Navigation className="h-4 w-4" />
@@ -101,8 +106,8 @@ export const LocationSelector = ({ currentLocation, onLocationChange }: Location
               onKeyDown={(e) => e.key === "Enter" && handleZipCodeSubmit()}
               className="flex-1"
             />
-            <Button onClick={handleZipCodeSubmit} disabled={!zipCode.trim()}>
-              Go
+            <Button onClick={handleZipCodeSubmit} disabled={!zipCode.trim() || isGeocoding}>
+              {isGeocoding ? <Loader2 className="h-4 w-4 animate-spin" /> : "Go"}
             </Button>
           </div>
         </div>
