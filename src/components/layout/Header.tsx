@@ -41,9 +41,7 @@ export const Header = () => {
               whileTap={{ scale: 0.95 }}
               className="flex items-center gap-2"
             >
-              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-display font-bold text-lg">H</span>
-              </div>
+              <img src="/HB_LOGO.svg" alt="HalalBytes Logo" className="w-9 h-9" />
               <span className="font-display font-bold text-xl text-foreground">
                 HalalBytes
               </span>

@@ -102,9 +102,7 @@ const ResetPassword = () => {
             animate={{ opacity: 1, y: 0 }}
           >
             <div className="flex items-center gap-2 mb-8">
-              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-display font-bold text-xl">H</span>
-              </div>
+              <img src="/HB_LOGO.svg" alt="HalalBytes Logo" className="w-10 h-10" />
               <span className="font-display font-bold text-2xl text-foreground">HalalBytes</span>
             </div>
 
