@@ -403,11 +403,11 @@ const RestaurantDetails = () => {
 
       {/* Content */}
       <div className="container mx-auto px-4 pb-16">
-        <div className="grid lg:grid-cols-3 gap-6 lg:gap-8 [&>*:first-child]:order-last lg:[&>*:first-child]:order-first">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6 sm:space-y-8">
+          <div className="contents lg:block lg:col-span-2 lg:space-y-8">
             {/* Header */}
-            <div>
+            <div className="order-1">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
                 <div className="flex-1">
                   <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-2">
@@ -459,10 +459,10 @@ const RestaurantDetails = () => {
               <p className="text-muted-foreground text-sm sm:text-base">{restaurant.description}</p>
             </div>
 
-            <Separator />
+            <Separator className="hidden lg:block" />
 
             {/* Reviews Section */}
-            <div>
+            <div className="order-3">
               {(() => {
                 const userHasReview = user && sortedReviews.some(r => r.user_id === user.id);
                 return (
@@ -514,7 +514,7 @@ const RestaurantDetails = () => {
           </div>
 
           {/* Sidebar - on mobile shows after reviews */}
-          <div className="space-y-4 sm:space-y-6 order-first lg:order-last">
+          <div className="space-y-4 sm:space-y-6 order-2 lg:order-last">
             <div className="lg:sticky lg:top-24 space-y-4 sm:space-y-6">
               {/* Contact Card */}
               <div className="p-4 sm:p-6 rounded-2xl bg-card border">
