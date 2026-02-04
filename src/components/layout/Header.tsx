@@ -92,14 +92,14 @@ export const Header = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {!loading && user ? (
+            {user && profile ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-10 w-10 ring-2 ring-primary/10 transition-all hover:ring-primary/30">
-                      <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.username || ''} />
+                      <AvatarImage src={profile.avatar_url || undefined} alt={profile.username || ''} />
                       <AvatarFallback className="bg-primary text-primary-foreground font-medium">
-                        {profile?.username?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
+                        {profile.username?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -107,13 +107,13 @@ export const Header = () => {
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <div className="flex items-center gap-2 p-2">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={profile?.avatar_url || undefined} alt={profile?.username || ''} />
+                      <AvatarImage src={profile.avatar_url || undefined} alt={profile.username || ''} />
                       <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                        {profile?.username?.charAt(0).toUpperCase() || 'U'}
+                        {profile.username?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col space-y-0.5">
-                      <p className="text-sm font-medium">{profile?.username || user.email}</p>
+                      <p className="text-sm font-medium">{profile.username || user.email}</p>
                       <p className="text-xs text-muted-foreground capitalize">{role || 'user'}</p>
                     </div>
                   </div>
@@ -154,7 +154,13 @@ export const Header = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : !loading ? (
+            ) : loading || user ? (
+              <Avatar className="h-10 w-10">
+                <AvatarFallback className="bg-primary text-primary-foreground font-medium">
+                  {user?.email?.charAt(0).toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+            ) : (
               <div className="hidden sm:flex items-center gap-2">
                 <Button 
                   variant="ghost" 
@@ -170,7 +176,7 @@ export const Header = () => {
                   Get Started
                 </Button>
               </div>
-            ) : null}
+            )}
 
             {/* Mobile Menu Button */}
             <Button

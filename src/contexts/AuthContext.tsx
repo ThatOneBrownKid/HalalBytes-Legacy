@@ -17,7 +17,9 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
+  setProfile: (profile: Profile | null) => void;
   role: 'admin' | 'moderator' | 'user' | null;
+  setRole: (role: 'admin' | 'moderator' | 'user' | null) => void;
   loading: boolean;
   signUp: (email: string, password: string, username?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -35,11 +37,74 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUserState] = useState<User | null>(() => {
+    try {
+      const storedUser = localStorage.getItem("user");
+      return storedUser ? JSON.parse(storedUser) : null;
+    } catch (error) {
+      console.error("Error reading user from localStorage", error);
+      return null;
+    }
+  });
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [role, setRole] = useState<'admin' | 'moderator' | 'user' | null>(null);
+  const [profile, setProfileState] = useState<Profile | null>(() => {
+    try {
+      const storedProfile = localStorage.getItem("profile");
+      return storedProfile ? JSON.parse(storedProfile) : null;
+    } catch (error) {
+      console.error("Error reading profile from localStorage", error);
+      return null;
+    }
+  });
+  const [role, setRoleState] = useState<'admin' | 'moderator' | 'user' | null>(() => {
+    try {
+      const storedRole = localStorage.getItem("role");
+      return storedRole ? JSON.parse(storedRole) : null;
+    } catch (error) {
+      console.error("Error reading role from localStorage", error);
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
+
+  const setUser = (newUser: User | null) => {
+    setUserState(newUser);
+    try {
+      if (newUser) {
+        localStorage.setItem("user", JSON.stringify(newUser));
+      } else {
+        localStorage.removeItem("user");
+      }
+    } catch (error) {
+      console.error("Error saving user to localStorage", error);
+    }
+  };
+
+  const setProfile = (newProfile: Profile | null) => {
+    setProfileState(newProfile);
+    try {
+      if (newProfile) {
+        localStorage.setItem("profile", JSON.stringify(newProfile));
+      } else {
+        localStorage.removeItem("profile");
+      }
+    } catch (error) {
+      console.error("Error saving profile to localStorage", error);
+    }
+  };
+
+  const setRole = (newRole: 'admin' | 'moderator' | 'user' | null) => {
+    setRoleState(newRole);
+    try {
+      if (newRole) {
+        localStorage.setItem("role", JSON.stringify(newRole));
+      } else {
+        localStorage.removeItem("role");
+      }
+    } catch (error) {
+      console.error("Error saving role to localStorage", error);
+    }
+  };
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
@@ -50,8 +115,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (error) {
       console.error("Error fetching profile:", error);
+      setProfile(null);
       return null;
     }
+    setProfile(data);
     return data;
   };
 
@@ -64,52 +131,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (error) {
       console.error("Error fetching role:", error);
+      setRole(null);
       return null;
     }
-    return data?.role || 'user';
+    const newRole = data?.role || 'user';
+    setRole(newRole);
+    return newRole;
   };
 
   useEffect(() => {
-    // Set up auth state listener first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          // Use setTimeout to avoid potential Supabase deadlock
-          setTimeout(async () => {
-            const userProfile = await fetchProfile(session.user.id);
-            const userRole = await fetchRole(session.user.id);
-            setProfile(userProfile);
-            setRole(userRole as 'admin' | 'moderator' | 'user');
-          }, 0);
-        } else {
-          setProfile(null);
-          setRole(null);
-        }
-        setLoading(false);
-      }
-    );
-
-    // Then get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    setLoading(true);
+    const getSessionAndProfile = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        Promise.all([
-          fetchProfile(session.user.id),
-          fetchRole(session.user.id)
-        ]).then(([userProfile, userRole]) => {
-          setProfile(userProfile);
-          setRole(userRole as 'admin' | 'moderator' | 'user');
-          setLoading(false);
-        });
-      } else {
-        setLoading(false);
+        await fetchProfile(session.user.id);
+        await fetchRole(session.user.id);
       }
-    });
+      setLoading(false);
+    };
+
+    getSessionAndProfile();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (event === 'SIGNED_IN' && session?.user) {
+          fetchProfile(session.user.id);
+          fetchRole(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setProfile(null);
+          setRole(null);
+        }
+      }
+    );
 
     return () => subscription.unsubscribe();
   }, []);
@@ -138,10 +197,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setProfile(null);
-    setRole(null);
   };
 
   return (
@@ -150,7 +205,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         session,
         profile,
+        setProfile,
         role,
+        setRole,
         loading,
         signUp,
         signIn,

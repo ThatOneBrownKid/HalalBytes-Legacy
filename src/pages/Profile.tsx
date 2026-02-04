@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
@@ -26,7 +26,7 @@ const fileToBase64 = (file: File): Promise<string> => {
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { user, profile, loading } = useAuth();
+  const { user, profile, setProfile, loading } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -36,13 +36,12 @@ const Profile = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [moderationError, setModerationError] = useState<string | null>(null);
 
-  // Sync state when profile loads
-  useState(() => {
+  useEffect(() => {
     if (profile) {
       setUsername(profile.username || "");
       setAvatarUrl(profile.avatar_url || "");
     }
-  });
+  }, [profile]);
 
   const deleteImageFromStorage = async (url: string) => {
     try {
@@ -64,17 +63,20 @@ const Profile = () => {
         await deleteImageFromStorage(profile.avatar_url);
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .update({ username, avatar_url: avatar_url || null })
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .select()
+        .single();
       
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success("Profile updated successfully!");
       setIsEditing(false);
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      setProfile(data);
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -155,12 +157,16 @@ const Profile = () => {
           await deleteImageFromStorage(profile.avatar_url);
         }
 
-        await supabase
+        const { data: updatedProfile, error } = await supabase
           .from("profiles")
           .update({ avatar_url: newAvatarUrl })
-          .eq("user_id", user.id);
+          .eq("user_id", user.id)
+          .select()
+          .single();
         
-        queryClient.invalidateQueries({ queryKey: ["profile"] });
+        if (error) throw error;
+        
+        setProfile(updatedProfile);
         toast.success("Avatar updated!");
       } else {
         // If we are replacing a temp image we just uploaded in this session
@@ -178,7 +184,7 @@ const Profile = () => {
   };
 
   const handleDeleteAvatar = async () => {
-    if (!user) return;
+    if (!user || !profile) return;
     
     if (!isEditing) {
       if (!profile?.avatar_url) return;
@@ -186,10 +192,12 @@ const Profile = () => {
       if (window.confirm("Are you sure you want to remove your profile picture?")) {
         await deleteImageFromStorage(profile.avatar_url);
         
-        const { error } = await supabase
+        const { data: updatedProfile, error } = await supabase
           .from("profiles")
           .update({ avatar_url: null })
-          .eq("user_id", user.id);
+          .eq("user_id", user.id)
+          .select()
+          .single();
           
         if (error) {
           toast.error("Failed to remove avatar");
@@ -197,7 +205,7 @@ const Profile = () => {
         }
         
         setAvatarUrl("");
-        queryClient.invalidateQueries({ queryKey: ["profile"] });
+        setProfile(updatedProfile);
         toast.success("Avatar removed");
       }
     } else {
