@@ -247,12 +247,58 @@ const RequestPreview = () => {
   });
 
   const dayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const dayNamesFull = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
   const today = dayNames[new Date().getDay()];
 
-  const formatHours = (hours: { isOpen: boolean; openTime?: string; closeTime?: string } | undefined): string => {
-    if (!hours || !hours.isOpen) return "Closed";
-    if (hours.openTime && hours.closeTime) return `${hours.openTime} - ${hours.closeTime}`;
-    return "Open";
+  // Helper to convert 24hr to 12hr format
+  const formatTo12Hour = (time24: string): string => {
+    if (!time24 || typeof time24 !== 'string') return time24;
+    if (time24.toLowerCase().includes('am') || time24.toLowerCase().includes('pm')) {
+      return time24;
+    }
+    const [hoursStr, minutesStr] = time24.split(':');
+    if (!hoursStr || !minutesStr) return time24;
+    const hours = parseInt(hoursStr, 10);
+    const minutes = parseInt(minutesStr, 10);
+    if (isNaN(hours) || isNaN(minutes)) return time24;
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+    return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
+
+  const formatHours = (hours: unknown, day: string): string => {
+    if (!hours || typeof hours !== 'object') return 'Closed';
+    
+    const hoursObj = hours as Record<string, unknown>;
+    
+    // Try full day name first, then short name
+    const fullDay = day.length === 3 ? dayNamesFull[dayNames.indexOf(day)] : day;
+    const shortDay = day.length > 3 ? dayNames[dayNamesFull.indexOf(day)] : day;
+    
+    let dayData = hoursObj[day] || hoursObj[fullDay] || hoursObj[shortDay];
+    
+    // Handle simple string format
+    if (typeof dayData === 'string') {
+      if (!dayData || dayData.toLowerCase() === 'closed') return 'Closed';
+      // Parse and reformat to 12hr
+      const parts = dayData.split(/\s*[-–]\s*/);
+      if (parts.length === 2) {
+        return `${formatTo12Hour(parts[0].trim())} - ${formatTo12Hour(parts[1].trim())}`;
+      }
+      return dayData;
+    }
+    
+    // Handle object format
+    if (dayData && typeof dayData === 'object') {
+      const dayObj = dayData as { isOpen?: boolean; openTime?: string; closeTime?: string };
+      if (!dayObj.isOpen) return 'Closed';
+      if (dayObj.openTime && dayObj.closeTime) {
+        return `${formatTo12Hour(dayObj.openTime)} - ${formatTo12Hour(dayObj.closeTime)}`;
+      }
+      return 'Open';
+    }
+    
+    return 'Closed';
   };
 
   const getStatusColor = (status: string) => {
@@ -512,7 +558,7 @@ const RequestPreview = () => {
                           <div className="text-left">
                             <p className="font-medium">Hours</p>
                             <p className="text-sm text-muted-foreground">
-                              Today: {formatHours(submissionData.opening_hours[today])}
+                              Today: {formatHours(submissionData.opening_hours, today)}
                             </p>
                           </div>
                         </div>
@@ -528,7 +574,7 @@ const RequestPreview = () => {
                               )}
                             >
                               <span className="capitalize">{day}</span>
-                              <span>{formatHours(submissionData.opening_hours?.[day])}</span>
+                              <span>{formatHours(submissionData.opening_hours, day)}</span>
                             </div>
                           ))}
                         </div>
